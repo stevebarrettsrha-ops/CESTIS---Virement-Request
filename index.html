@@ -1,0 +1,1020 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HEART/NSTA Trust — Virement Request Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --navy: #0a1628;
+            --navy-mid: #132240;
+            --navy-light: #1a3058;
+            --gold: #d4a843;
+            --gold-dim: #a07d2e;
+            --gold-bright: #f0c75e;
+            --emerald: #10b981;
+            --rose: #f43f5e;
+            --sky: #38bdf8;
+            --slate: #94a3b8;
+            --slate-dim: #64748b;
+            --surface: #0f1d35;
+            --card: #162544;
+            --border: rgba(212,168,67,0.12);
+            --text: #e2e8f0;
+            --text-dim: #94a3b8;
+            --radius: 10px;
+        }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: var(--navy);
+            color: var(--text);
+            min-height: 100vh;
+        }
+
+        /* ─── TOP BAR ─── */
+        .topbar {
+            background: linear-gradient(135deg, var(--navy-mid), var(--navy));
+            border-bottom: 1px solid var(--border);
+            padding: 1rem 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky; top: 0; z-index: 100;
+        }
+        .topbar-brand {
+            display: flex; align-items: center; gap: 1rem;
+        }
+        .topbar-brand .logo {
+            width: 42px; height: 42px;
+            background: linear-gradient(135deg, var(--gold), var(--gold-dim));
+            border-radius: 8px;
+            display: grid; place-items: center;
+            font-weight: 700; font-size: 0.7rem; color: var(--navy);
+            letter-spacing: 1px; line-height: 1;
+        }
+        .topbar-brand h1 {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.15rem; color: white; letter-spacing: 0.5px;
+        }
+        .topbar-brand p {
+            font-size: 0.72rem; color: var(--gold); text-transform: uppercase;
+            letter-spacing: 2px; margin-top: 2px;
+        }
+        .topbar-actions { display:flex; gap:0.5rem; }
+        .topbar-actions button {
+            padding: 0.5rem 1rem; border:none; border-radius:6px;
+            font-family: inherit; font-size:0.8rem; font-weight:600;
+            cursor:pointer; transition:all 0.2s;
+        }
+        .btn-gold { background: var(--gold); color: var(--navy); }
+        .btn-gold:hover { background: var(--gold-bright); }
+        .btn-ghost { background: transparent; color: var(--text); border: 1px solid var(--border) !important; }
+        .btn-ghost:hover { background: rgba(255,255,255,0.05); }
+        .btn-emerald { background: var(--emerald); color: white; }
+        .btn-emerald:hover { background: #059669; }
+        .btn-rose { background: var(--rose); color: white; }
+        .btn-rose:hover { background: #dc2626; }
+
+        /* ─── TAB NAV ─── */
+        .tab-nav {
+            display: flex; gap:0;
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            padding: 0 2rem;
+        }
+        .tab-btn {
+            padding: 0.85rem 1.5rem;
+            background: transparent; border:none;
+            color: var(--text-dim); font-family:inherit;
+            font-size: 0.82rem; font-weight: 600;
+            cursor: pointer; position:relative;
+            transition: color 0.2s;
+            letter-spacing: 0.3px;
+        }
+        .tab-btn:hover { color: var(--text); }
+        .tab-btn.active { color: var(--gold); }
+        .tab-btn.active::after {
+            content:''; position:absolute; bottom:0; left:0; right:0;
+            height:2px; background: var(--gold);
+        }
+
+        /* ─── MAIN ─── */
+        .main { padding: 1.5rem 2rem 3rem; max-width: 1500px; margin: 0 auto; }
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
+
+        /* ─── STAT CARDS ─── */
+        .stat-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px,1fr));
+            gap: 1rem; margin-bottom: 1.5rem;
+        }
+        .stat-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 1.25rem;
+            position: relative; overflow: hidden;
+        }
+        .stat-card::before {
+            content:''; position:absolute; top:0; left:0;
+            width:3px; height:100%;
+        }
+        .stat-card.gold::before { background: var(--gold); }
+        .stat-card.emerald::before { background: var(--emerald); }
+        .stat-card.rose::before { background: var(--rose); }
+        .stat-card.sky::before { background: var(--sky); }
+        .stat-card .label {
+            font-size:0.7rem; text-transform:uppercase;
+            letter-spacing:1.5px; color: var(--text-dim);
+            margin-bottom: 0.5rem;
+        }
+        .stat-card .value {
+            font-size: 1.6rem; font-weight: 700; color: white;
+        }
+        .stat-card .sub {
+            font-size:0.75rem; color: var(--text-dim); margin-top:0.25rem;
+        }
+
+        /* ─── BUDGET TABLE ─── */
+        .table-wrap {
+            background: var(--card); border: 1px solid var(--border);
+            border-radius: var(--radius); overflow: hidden;
+        }
+        .table-header {
+            padding: 1rem 1.25rem;
+            display: flex; justify-content: space-between; align-items: center;
+            border-bottom: 1px solid var(--border);
+        }
+        .table-header h3 {
+            font-size: 0.95rem; color: white;
+        }
+        table {
+            width: 100%; border-collapse: collapse;
+        }
+        th {
+            text-align: left; padding: 0.7rem 1rem;
+            font-size: 0.7rem; text-transform: uppercase;
+            letter-spacing: 1px; color: var(--text-dim);
+            background: rgba(0,0,0,0.2);
+            border-bottom: 1px solid var(--border);
+            white-space: nowrap;
+        }
+        td {
+            padding: 0.65rem 1rem;
+            font-size: 0.85rem;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+            white-space: nowrap;
+        }
+        tr:hover td { background: rgba(255,255,255,0.02); }
+        .num { text-align: right; font-variant-numeric: tabular-nums; }
+        .pos { color: var(--emerald); }
+        .neg { color: var(--rose); }
+        .zero { color: var(--text-dim); }
+
+        /* ─── VIREMENT FORM ─── */
+        .form-section {
+            background: var(--card); border: 1px solid var(--border);
+            border-radius: var(--radius); padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .form-section h3 {
+            font-size: 1rem; color: var(--gold);
+            margin-bottom: 1rem; padding-bottom: 0.5rem;
+            border-bottom: 1px solid var(--border);
+        }
+        .form-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(280px,1fr));
+            gap: 1rem;
+        }
+        .field label {
+            display: block; font-size: 0.75rem;
+            text-transform: uppercase; letter-spacing: 1px;
+            color: var(--text-dim); margin-bottom: 0.35rem;
+        }
+        .field input, .field select, .field textarea {
+            width: 100%; padding: 0.6rem 0.8rem;
+            background: var(--navy); border: 1px solid var(--border);
+            border-radius: 6px; color: white;
+            font-family: inherit; font-size: 0.85rem;
+        }
+        .field input:focus, .field select:focus, .field textarea:focus {
+            outline: none; border-color: var(--gold);
+            box-shadow: 0 0 0 3px rgba(212,168,67,0.12);
+        }
+        .field select option { background: var(--navy); }
+
+        /* ─── VIREMENT ENTRIES ─── */
+        .virement-entry {
+            background: var(--navy);
+            border: 1px solid var(--border);
+            border-radius: 8px; padding: 1rem;
+            margin-bottom: 0.75rem;
+            display: grid;
+            grid-template-columns: 1fr 160px 1fr 40px;
+            gap: 0.75rem; align-items: end;
+        }
+        .virement-entry .remove-btn {
+            background: rgba(244,63,94,0.15); border: 1px solid rgba(244,63,94,0.3);
+            color: var(--rose); border-radius:6px; padding: 0.6rem;
+            cursor:pointer; font-size:1rem;
+        }
+        .virement-entry .remove-btn:hover { background: rgba(244,63,94,0.3); }
+
+        .arrow-indicator {
+            display: flex; align-items: center; justify-content: center;
+            color: var(--gold); font-size: 1.5rem;
+            padding-bottom: 0.3rem;
+        }
+
+        /* ─── VIREMENT LIST ─── */
+        .virement-list-item {
+            background: var(--card); border: 1px solid var(--border);
+            border-radius: var(--radius); padding: 1rem 1.25rem;
+            margin-bottom: 0.75rem;
+            display: flex; justify-content: space-between; align-items: center;
+            cursor: pointer; transition: border-color 0.2s;
+        }
+        .virement-list-item:hover { border-color: var(--gold); }
+        .virement-list-item .vl-info h4 {
+            font-size: 0.9rem; color: white; margin-bottom: 0.25rem;
+        }
+        .virement-list-item .vl-info p {
+            font-size: 0.78rem; color: var(--text-dim);
+        }
+        .virement-list-item .vl-amount {
+            font-size: 1.1rem; font-weight: 700; color: var(--gold);
+        }
+        .badge {
+            display: inline-block; padding: 0.15rem 0.5rem;
+            border-radius: 4px; font-size: 0.68rem;
+            font-weight: 600; text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .badge-pending { background: rgba(245,158,11,0.15); color: #fbbf24; }
+        .badge-approved { background: rgba(16,185,129,0.15); color: var(--emerald); }
+
+        /* ─── PRINT PREVIEW ─── */
+        .print-frame {
+            background: white; color: #111; border-radius: var(--radius);
+            padding: 0; max-width: 800px; margin: 0 auto;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+            overflow: hidden;
+        }
+        .print-page {
+            padding: 2.5rem 2rem;
+            page-break-after: always;
+            min-height: auto;
+        }
+        .print-page + .print-page {
+            border-top: 2px dashed #ccc;
+        }
+        .print-header {
+            text-align: center; margin-bottom: 1.5rem;
+            border-bottom: 3px solid #000; padding-bottom: 1rem;
+        }
+        .print-header h1 { font-size: 1.3rem; font-weight:bold; margin-bottom:0.15rem; color: #000; font-family: 'DM Sans', Arial, sans-serif; }
+        .print-header h2 { font-size: 0.9rem; font-weight:normal; color: #333; }
+        .print-header h3 { font-size: 1.1rem; font-weight:bold; margin-top:0.5rem; letter-spacing: 1px; color: #000; }
+        .print-body p { font-size:0.88rem; line-height:1.7; color:#222; margin-bottom:0.5rem; }
+        .print-body .amount-highlight {
+            font-weight:700; color:#000;
+        }
+        .print-table {
+            width:100%; border-collapse:collapse; margin: 1rem 0;
+        }
+        .print-table th, .print-table td {
+            border: 1px solid #333; padding: 0.5rem 0.75rem;
+            font-size: 0.82rem; color: #000;
+        }
+        .print-table th {
+            background: #e5e7eb; font-weight:600; text-align:left;
+        }
+        .print-total-row {
+            font-weight: 700; font-size: 0.95rem;
+            padding: 0.75rem 0; margin: 0.5rem 0;
+            border-top: 2px solid #000;
+            color: #000;
+        }
+        .print-signatures {
+            margin-top: 2rem; padding-top: 1rem;
+        }
+        .print-sig-row {
+            margin-bottom: 1.5rem;
+        }
+        .print-sig-row .sig-label {
+            font-weight:600; font-size:0.85rem; color:#000; margin-bottom:0.5rem;
+        }
+        .print-sig-line {
+            display: grid; grid-template-columns: 1fr 1fr 1fr 120px; gap: 1rem;
+            border-bottom: 1px solid #000; padding-bottom: 0.25rem;
+            font-size: 0.75rem; color: #666;
+        }
+        .print-footer {
+            border-top: 1px solid #ccc; padding-top: 0.5rem;
+            font-size: 0.72rem; color: #999; margin-top: 1rem;
+        }
+
+        /* ─── CHARTS ─── */
+        .chart-grid {
+            display: grid; grid-template-columns: 1fr 1fr;
+            gap: 1.5rem; margin-bottom: 1.5rem;
+        }
+        .chart-card {
+            background: var(--card); border: 1px solid var(--border);
+            border-radius: var(--radius); padding: 1.25rem;
+        }
+        .chart-card h4 {
+            font-size: 0.85rem; color: var(--gold);
+            margin-bottom: 1rem;
+        }
+        .bar-chart { display:flex; flex-direction:column; gap:0.5rem; }
+        .bar-row {
+            display: grid; grid-template-columns: 130px 1fr 80px; gap:0.5rem; align-items: center;
+        }
+        .bar-label { font-size:0.72rem; color: var(--text-dim); text-align:right; overflow:hidden; text-overflow:ellipsis; }
+        .bar-track { height:18px; background: rgba(255,255,255,0.05); border-radius:3px; overflow:hidden; position:relative; }
+        .bar-fill { height:100%; border-radius:3px; transition: width 0.5s ease; }
+        .bar-fill.surplus { background: linear-gradient(90deg, var(--emerald), #34d399); }
+        .bar-fill.deficit { background: linear-gradient(90deg, var(--rose), #fb7185); }
+        .bar-value { font-size:0.72rem; font-variant-numeric:tabular-nums; }
+
+        /* ─── MODAL ─── */
+        .modal-overlay {
+            display:none; position:fixed; inset:0;
+            background: rgba(0,0,0,0.7); z-index:200;
+            align-items:center; justify-content:center;
+        }
+        .modal-overlay.show { display:flex; }
+        .modal {
+            background: var(--card); border: 1px solid var(--border);
+            border-radius: 12px; max-width:900px; width:95%;
+            max-height:90vh; overflow-y:auto; padding: 2rem;
+        }
+        .modal h2 { color: var(--gold); margin-bottom: 1rem; font-size: 1.1rem; }
+
+        /* ─── RESPONSIVE ─── */
+        @media (max-width:900px) {
+            .chart-grid { grid-template-columns: 1fr; }
+            .virement-entry { grid-template-columns: 1fr; }
+            .topbar { flex-direction: column; gap:0.75rem; }
+            .main { padding: 1rem; }
+        }
+
+        /* ─── PRINT ─── */
+        @media print {
+            body { background: white; }
+            .topbar, .tab-nav, .no-print { display: none !important; }
+            .main { padding: 0; max-width: 100%; }
+            .tab-panel { display: none !important; }
+            .tab-panel.print-active { display: block !important; }
+            .print-frame { box-shadow: none; border-radius: 0; }
+            .print-page { padding: 1.5rem; }
+        }
+
+        /* scrollbar */
+        ::-webkit-scrollbar { width:6px; }
+        ::-webkit-scrollbar-track { background: var(--navy); }
+        ::-webkit-scrollbar-thumb { background: var(--navy-light); border-radius:3px; }
+    </style>
+</head>
+<body>
+
+<!-- ═══════════════ TOP BAR ═══════════════ -->
+<div class="topbar">
+    <div class="topbar-brand">
+        <div class="logo">HEART<br>NSTA</div>
+        <div>
+            <h1>HEART/NSTA Trust</h1>
+            <p>Community Training Intervention — Virement Dashboard</p>
+        </div>
+    </div>
+    <div class="topbar-actions no-print">
+        <button class="btn-ghost" onclick="saveAllData()">💾 Save</button>
+        <button class="btn-ghost" onclick="loadAllData()">📂 Load</button>
+        <button class="btn-gold" onclick="printVirements()">🖨️ Print / PDF</button>
+    </div>
+</div>
+
+<!-- ═══════════════ TAB NAV ═══════════════ -->
+<div class="tab-nav no-print">
+    <button class="tab-btn active" onclick="switchTab('overview',this)">📊 Budget Overview</button>
+    <button class="tab-btn" onclick="switchTab('create',this)">✏️ Create Virement</button>
+    <button class="tab-btn" onclick="switchTab('requests',this)">📋 Virement Requests</button>
+    <button class="tab-btn" onclick="switchTab('preview',this)">🖨️ Print Preview</button>
+</div>
+
+<!-- ═══════════════ MAIN CONTENT ═══════════════ -->
+<div class="main">
+
+<!-- ─── TAB 1: BUDGET OVERVIEW ─── -->
+<div id="tab-overview" class="tab-panel active">
+    <div class="stat-row" id="statsRow"></div>
+    <div class="chart-grid" id="chartArea"></div>
+    <div class="table-wrap">
+        <div class="table-header">
+            <h3>Budget Line Items — OCT to DEC 2025</h3>
+            <span style="font-size:0.75rem;color:var(--text-dim)">CESTI / Hazard Skills Training Centre</span>
+        </div>
+        <div style="overflow-x:auto;">
+            <table id="budgetTable">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Line Item</th>
+                        <th class="num">Allocated ($)</th>
+                        <th class="num">Actual ($)</th>
+                        <th class="num">Variance ($)</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="budgetBody"></tbody>
+                <tfoot id="budgetFoot"></tfoot>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- ─── TAB 2: CREATE VIREMENT ─── -->
+<div id="tab-create" class="tab-panel">
+    <div class="form-section">
+        <h3>Virement Request Details</h3>
+        <div class="form-grid">
+            <div class="field">
+                <label>Project Name</label>
+                <input type="text" id="vProjectName" value="Community Educational and Skills Training Institute and Services Limited (Hazard Skills Training Centre)">
+            </div>
+            <div class="field">
+                <label>Subvention Period</label>
+                <input type="text" id="vPeriod" value="October to December 2025">
+            </div>
+            <div class="field">
+                <label>Requested By (Name)</label>
+                <input type="text" id="vRequestedBy">
+            </div>
+            <div class="field">
+                <label>Position</label>
+                <input type="text" id="vPosition" value="Assistant Coordinator">
+            </div>
+        </div>
+    </div>
+
+    <div class="form-section">
+        <h3>Fund Transfer Lines</h3>
+        <p style="font-size:0.8rem;color:var(--text-dim);margin-bottom:1rem;">
+            Add one or more transfers. Each line moves funds FROM a surplus line item TO a deficit line item.
+        </p>
+        <div id="virementLines"></div>
+        <button class="btn-emerald" onclick="addVirementLine()" style="margin-top:0.75rem;">+ Add Transfer Line</button>
+    </div>
+
+    <div class="form-section" style="display:flex;justify-content:space-between;align-items:center;">
+        <div>
+            <span style="font-size:0.8rem;color:var(--text-dim);">Total Virement Amount:</span>
+            <span id="virementTotal" style="font-size:1.3rem;font-weight:700;color:var(--gold);margin-left:0.75rem;">$0.00</span>
+        </div>
+        <div style="display:flex;gap:0.5rem;">
+            <button class="btn-ghost" onclick="clearVirementForm()">Clear</button>
+            <button class="btn-gold" onclick="submitVirement()">Submit Virement Request</button>
+        </div>
+    </div>
+</div>
+
+<!-- ─── TAB 3: VIREMENT REQUESTS ─── -->
+<div id="tab-requests" class="tab-panel">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem;">
+        <h3 style="color:white;">Submitted Virement Requests</h3>
+        <span id="requestCount" style="font-size:0.8rem;color:var(--text-dim);"></span>
+    </div>
+    <div id="requestsList"></div>
+</div>
+
+<!-- ─── TAB 4: PRINT PREVIEW ─── -->
+<div id="tab-preview" class="tab-panel">
+    <div class="no-print" style="text-align:center;margin-bottom:1.5rem;">
+        <button class="btn-gold" onclick="printVirements()" style="padding:0.75rem 2rem;font-size:0.9rem;">🖨️ Print All Virement Forms / Save as PDF</button>
+        <p style="font-size:0.75rem;color:var(--text-dim);margin-top:0.5rem;">Each virement request generates a separate form page matching the official HEART/NSTA Trust format.</p>
+    </div>
+    <div id="printPreviewArea" class="print-frame"></div>
+</div>
+
+</div><!-- /main -->
+
+<!-- ═══════════════ DETAIL MODAL ═══════════════ -->
+<div class="modal-overlay" id="detailModal">
+    <div class="modal">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+            <h2 id="modalTitle">Virement Detail</h2>
+            <button class="btn-ghost" onclick="closeModal()" style="font-size:1.2rem;">&times;</button>
+        </div>
+        <div id="modalBody"></div>
+        <div style="display:flex;gap:0.5rem;justify-content:flex-end;margin-top:1.5rem;">
+            <button class="btn-rose" id="modalDeleteBtn" onclick="deleteCurrentVirement()">🗑 Delete</button>
+            <button class="btn-ghost" onclick="closeModal()">Close</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+//  DATA
+// ═══════════════════════════════════════════════════════════
+const budgetData = [
+    { id:'coordinator',     name:'Coordinator Salary',          allocated:345394.95, actual:320586.96 },
+    { id:'asst_coord',      name:'Assistant Coordinator',       allocated:234000.00, actual:217192.95 },
+    { id:'statutory',       name:'Statutory Deductions',        allocated:457490.66, actual:563813.18 },
+    { id:'admin',           name:'Admin Expenses',              allocated:150000.00, actual:370707.80 },
+    { id:'training_mat',    name:'Training Material',           allocated:150000.00, actual:0.00 },
+    { id:'assessor',        name:'Assessor Fees',               allocated:250000.00, actual:0.00 },
+    { id:'utilities',       name:'Utilities / McChem',          allocated:150000.00, actual:37774.35 },
+    { id:'maintenance',     name:'Maintenance',                 allocated:150000.00, actual:711000.00 },
+    { id:'welding_l3',      name:'Welding Level 3',             allocated:308091.99, actual:0.00 },
+    { id:'electrical_l3',   name:'Electrical Installation L3',  allocated:308091.99, actual:0.00 },
+    { id:'welding_inst',    name:'Welding Instructor Regular',  allocated:287829.27, actual:267155.94 },
+    { id:'bt_inst',         name:'BT Instructor',               allocated:287829.27, actual:267155.94 },
+    { id:'electrical_inst', name:'Electrical Instructor',       allocated:287829.27, actual:267155.94 },
+    { id:'bnv_welding',     name:'BNV Welding',                 allocated:287829.27, actual:267155.94 },
+    { id:'bnv_electrical',  name:'BNV Electrical',              allocated:287829.27, actual:267155.94 },
+    { id:'data_inst',       name:'Data Instructor',             allocated:193800.00, actual:191872.34 },
+    { id:'remedial_eng',    name:'Remedial English',            allocated:193800.00, actual:34477.06 },
+    { id:'pers_dev',        name:'Personal Development',        allocated:0.00,      actual:0.00 },
+    { id:'entrep_inst',     name:'Entrepreneurship Instructor', allocated:193800.00, actual:191872.34 },
+    { id:'math_inst',       name:'Math Instructor',             allocated:193800.00, actual:0.00 },
+    { id:'bank_charge',     name:'Bank Charges',                allocated:0.00,      actual:3091.47 },
+    { id:'travelling',      name:'Travelling',                  allocated:30000.00,  actual:57481.20 },
+    { id:'lunch',           name:'Lunch',                       allocated:0.00,      actual:600000.00 }
+];
+
+let virementRequests = [];
+let currentModalIdx = -1;
+
+// ═══════════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', function(){
+    loadAllData();
+    renderBudgetOverview();
+    renderRequests();
+    renderPrintPreview();
+    addVirementLine();
+});
+
+// ═══════════════════════════════════════════════════════════
+//  TAB SWITCHING
+// ═══════════════════════════════════════════════════════════
+function switchTab(tab, btn){
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('tab-'+tab).classList.add('active');
+    btn.classList.add('active');
+    if(tab==='preview') renderPrintPreview();
+    if(tab==='overview') renderBudgetOverview();
+}
+
+// ═══════════════════════════════════════════════════════════
+//  FORMAT HELPERS
+// ═══════════════════════════════════════════════════════════
+function fmt(n){ return '$' + Math.abs(n).toLocaleString('en-US',{minimumFractionDigits:2, maximumFractionDigits:2}); }
+function fmtSigned(n){ return (n<0?'-':'') + fmt(n); }
+function numberToWords(n){
+    if(n===0) return 'Zero dollars';
+    const ones=['','One','Two','Three','Four','Five','Six','Seven','Eight','Nine','Ten',
+                'Eleven','Twelve','Thirteen','Fourteen','Fifteen','Sixteen','Seventeen','Eighteen','Nineteen'];
+    const tens=['','','Twenty','Thirty','Forty','Fifty','Sixty','Seventy','Eighty','Ninety'];
+    function w(num){
+        if(num===0) return '';
+        if(num<20) return ones[num];
+        if(num<100) return tens[Math.floor(num/10)]+(num%10?' '+ones[num%10]:'');
+        if(num<1000) return ones[Math.floor(num/100)]+' Hundred'+(num%100?' and '+w(num%100):'');
+        if(num<1000000) return w(Math.floor(num/1000))+' Thousand'+(num%1000?', '+w(num%1000):'');
+        return w(Math.floor(num/1000000))+' Million'+(num%1000000?', '+w(num%1000000):'');
+    }
+    let dollars = Math.floor(n);
+    let cents = Math.round((n - dollars)*100);
+    let result = w(dollars) + ' Dollars';
+    if(cents>0) result += ' and ' + w(cents) + ' Cents';
+    return result;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  BUDGET OVERVIEW
+// ═══════════════════════════════════════════════════════════
+function renderBudgetOverview(){
+    let totalAlloc=0, totalActual=0, totalSurplus=0, totalDeficit=0;
+    budgetData.forEach(item=>{
+        let v = item.allocated - item.actual;
+        totalAlloc += item.allocated;
+        totalActual += item.actual;
+        if(v>0) totalSurplus += v;
+        else totalDeficit += Math.abs(v);
+    });
+    let netVariance = totalAlloc - totalActual;
+    let totalVired = virementRequests.reduce((s,r)=>s+r.lines.reduce((a,l)=>a+l.amount,0),0);
+
+    // Stats
+    document.getElementById('statsRow').innerHTML = `
+        <div class="stat-card gold"><div class="label">Total Allocated</div><div class="value">${fmt(totalAlloc)}</div><div class="sub">OCT–DEC 2025 Subvention</div></div>
+        <div class="stat-card sky"><div class="label">Total Actual</div><div class="value">${fmt(totalActual)}</div><div class="sub">Expenditure to date</div></div>
+        <div class="stat-card emerald"><div class="label">Total Surplus Lines</div><div class="value">${fmt(totalSurplus)}</div><div class="sub">Available for virement</div></div>
+        <div class="stat-card rose"><div class="label">Total Deficit Lines</div><div class="value">${fmt(totalDeficit)}</div><div class="sub">Requiring additional funds</div></div>
+        <div class="stat-card gold"><div class="label">Net Variance</div><div class="value">${fmtSigned(netVariance)}</div><div class="sub">${netVariance>=0?'Under budget':'Over budget'}</div></div>
+        <div class="stat-card sky"><div class="label">Total Vired</div><div class="value">${fmt(totalVired)}</div><div class="sub">${virementRequests.length} request(s) created</div></div>
+    `;
+
+    // Charts
+    let surplusItems = budgetData.filter(i=>(i.allocated-i.actual)>0).sort((a,b)=>(b.allocated-b.actual)-(a.allocated-a.actual));
+    let deficitItems = budgetData.filter(i=>(i.allocated-i.actual)<0).sort((a,b)=>(a.allocated-a.actual)-(b.allocated-b.actual));
+    let maxVal = Math.max(...budgetData.map(i=>Math.abs(i.allocated-i.actual)),1);
+
+    let surplusBars = surplusItems.map(i=>{
+        let v = i.allocated - i.actual;
+        let pct = (v/maxVal*100).toFixed(1);
+        return `<div class="bar-row"><div class="bar-label">${i.name}</div><div class="bar-track"><div class="bar-fill surplus" style="width:${pct}%"></div></div><div class="bar-value pos num">${fmt(v)}</div></div>`;
+    }).join('');
+
+    let deficitBars = deficitItems.map(i=>{
+        let v = Math.abs(i.allocated - i.actual);
+        let pct = (v/maxVal*100).toFixed(1);
+        return `<div class="bar-row"><div class="bar-label">${i.name}</div><div class="bar-track"><div class="bar-fill deficit" style="width:${pct}%"></div></div><div class="bar-value neg num">-${fmt(v)}</div></div>`;
+    }).join('');
+
+    document.getElementById('chartArea').innerHTML = `
+        <div class="chart-card"><h4>📈 Surplus Line Items (Available to Vire)</h4><div class="bar-chart">${surplusBars}</div></div>
+        <div class="chart-card"><h4>📉 Deficit Line Items (Require Funding)</h4><div class="bar-chart">${deficitBars}</div></div>
+    `;
+
+    // Table
+    let tbody = '';
+    budgetData.forEach((item,i)=>{
+        let v = item.allocated - item.actual;
+        let cls = v>0?'pos':v<0?'neg':'zero';
+        let statusBadge = v>0?'<span class="badge badge-approved">Surplus</span>':v<0?'<span class="badge badge-pending" style="background:rgba(244,63,94,0.15);color:var(--rose);">Deficit</span>':'<span class="badge" style="background:rgba(148,163,184,0.1);color:var(--slate);">Balanced</span>';
+        tbody += `<tr>
+            <td style="color:var(--text-dim);">${i+1}</td>
+            <td>${item.name}</td>
+            <td class="num">${fmt(item.allocated)}</td>
+            <td class="num">${fmt(item.actual)}</td>
+            <td class="num ${cls}">${fmtSigned(v)}</td>
+            <td>${statusBadge}</td>
+        </tr>`;
+    });
+    document.getElementById('budgetBody').innerHTML = tbody;
+
+    let tVariance = totalAlloc - totalActual;
+    document.getElementById('budgetFoot').innerHTML = `<tr style="background:rgba(212,168,67,0.08);">
+        <td></td>
+        <td style="font-weight:700;color:var(--gold);">TOTALS</td>
+        <td class="num" style="font-weight:700;">${fmt(totalAlloc)}</td>
+        <td class="num" style="font-weight:700;">${fmt(totalActual)}</td>
+        <td class="num ${tVariance>=0?'pos':'neg'}" style="font-weight:700;">${fmtSigned(tVariance)}</td>
+        <td></td>
+    </tr>`;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  VIREMENT FORM
+// ═══════════════════════════════════════════════════════════
+function getLineOptions(type){
+    let items = budgetData;
+    if(type==='from') items = budgetData.filter(i=>(i.allocated-i.actual)>0);
+    if(type==='to') items = budgetData.filter(i=>(i.allocated-i.actual)<0);
+    return '<option value="">— Select —</option>' + items.map(i=>{
+        let v = i.allocated - i.actual;
+        let info = type==='from' ? `Surplus: ${fmt(v)}` : `Deficit: ${fmt(Math.abs(v))}`;
+        return `<option value="${i.id}">${i.name} (${info})</option>`;
+    }).join('');
+}
+
+function addVirementLine(){
+    let container = document.getElementById('virementLines');
+    let div = document.createElement('div');
+    div.className = 'virement-entry';
+    div.innerHTML = `
+        <div class="field">
+            <label>From Line Item</label>
+            <select class="vl-from" onchange="updateVirementTotal()">${getLineOptions('from')}</select>
+        </div>
+        <div class="field">
+            <label>Amount ($)</label>
+            <input type="number" step="0.01" min="0" class="vl-amount" onchange="updateVirementTotal()" oninput="updateVirementTotal()" placeholder="0.00">
+        </div>
+        <div class="field">
+            <label>To Line Item</label>
+            <select class="vl-to" onchange="updateVirementTotal()">${getLineOptions('to')}</select>
+        </div>
+        <button class="remove-btn" onclick="this.parentElement.remove();updateVirementTotal();">✕</button>
+    `;
+    container.appendChild(div);
+}
+
+function updateVirementTotal(){
+    let total = 0;
+    document.querySelectorAll('.virement-entry').forEach(entry=>{
+        let amt = parseFloat(entry.querySelector('.vl-amount').value) || 0;
+        total += amt;
+    });
+    document.getElementById('virementTotal').textContent = fmt(total);
+}
+
+function clearVirementForm(){
+    document.getElementById('virementLines').innerHTML = '';
+    addVirementLine();
+    updateVirementTotal();
+}
+
+function submitVirement(){
+    let lines = [];
+    let valid = true;
+    document.querySelectorAll('.virement-entry').forEach(entry=>{
+        let from = entry.querySelector('.vl-from').value;
+        let to = entry.querySelector('.vl-to').value;
+        let amount = parseFloat(entry.querySelector('.vl-amount').value) || 0;
+        if(!from || !to || amount<=0){ valid = false; return; }
+        lines.push({
+            fromId: from,
+            fromName: budgetData.find(b=>b.id===from).name,
+            toId: to,
+            toName: budgetData.find(b=>b.id===to).name,
+            amount: amount
+        });
+    });
+    if(!valid || lines.length===0){
+        alert('Please fill in all fields. Each line needs a From item, To item, and positive amount.');
+        return;
+    }
+    let totalAmt = lines.reduce((s,l)=>s+l.amount, 0);
+    let request = {
+        id: Date.now(),
+        date: new Date().toISOString().split('T')[0],
+        project: document.getElementById('vProjectName').value,
+        period: document.getElementById('vPeriod').value,
+        requestedBy: document.getElementById('vRequestedBy').value,
+        position: document.getElementById('vPosition').value,
+        total: totalAmt,
+        totalWords: numberToWords(totalAmt),
+        lines: lines,
+        status: 'Pending'
+    };
+    virementRequests.push(request);
+    saveAllData();
+    clearVirementForm();
+    renderRequests();
+    renderBudgetOverview();
+    alert('Virement request #' + virementRequests.length + ' submitted successfully!');
+}
+
+// ═══════════════════════════════════════════════════════════
+//  VIREMENT LIST
+// ═══════════════════════════════════════════════════════════
+function renderRequests(){
+    let container = document.getElementById('requestsList');
+    document.getElementById('requestCount').textContent = virementRequests.length + ' request(s)';
+    if(virementRequests.length===0){
+        container.innerHTML = '<div style="text-align:center;padding:3rem;color:var(--text-dim);">No virement requests yet. Go to "Create Virement" to add one.</div>';
+        return;
+    }
+    container.innerHTML = virementRequests.map((r,i)=>{
+        let badge = r.status==='Approved' ? '<span class="badge badge-approved">Approved</span>' : '<span class="badge badge-pending">Pending</span>';
+        let summaryLines = r.lines.map(l=>`${l.fromName} → ${l.toName}`).join(', ');
+        if(summaryLines.length>80) summaryLines = summaryLines.substring(0,80)+'…';
+        return `<div class="virement-list-item" onclick="showDetail(${i})">
+            <div class="vl-info">
+                <h4>Virement #${i+1} — ${r.date} ${badge}</h4>
+                <p>${summaryLines}</p>
+            </div>
+            <div class="vl-amount">${fmt(r.total)}</div>
+        </div>`;
+    }).join('');
+}
+
+function showDetail(idx){
+    currentModalIdx = idx;
+    let r = virementRequests[idx];
+    document.getElementById('modalTitle').textContent = 'Virement #'+(idx+1)+' — '+r.date;
+    let linesHtml = r.lines.map(l=>`<tr><td>${l.fromName}</td><td class="num">${fmt(l.amount)}</td><td>${l.toName}</td></tr>`).join('');
+    document.getElementById('modalBody').innerHTML = `
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;">
+            <div><span style="color:var(--text-dim);font-size:0.75rem;">Project</span><br>${r.project}</div>
+            <div><span style="color:var(--text-dim);font-size:0.75rem;">Period</span><br>${r.period}</div>
+            <div><span style="color:var(--text-dim);font-size:0.75rem;">Requested By</span><br>${r.requestedBy||'—'}</div>
+            <div><span style="color:var(--text-dim);font-size:0.75rem;">Total</span><br><strong style="color:var(--gold);font-size:1.2rem;">${fmt(r.total)}</strong></div>
+        </div>
+        <table>
+            <thead><tr><th>From Line Item</th><th class="num">Amount</th><th>To Line Item</th></tr></thead>
+            <tbody>${linesHtml}</tbody>
+        </table>
+        <p style="margin-top:0.75rem;font-size:0.82rem;color:var(--text-dim);font-style:italic;">${r.totalWords}</p>
+    `;
+    document.getElementById('detailModal').classList.add('show');
+}
+function closeModal(){ document.getElementById('detailModal').classList.remove('show'); }
+function deleteCurrentVirement(){
+    if(currentModalIdx>=0 && confirm('Delete this virement request?')){
+        virementRequests.splice(currentModalIdx,1);
+        saveAllData(); renderRequests(); renderBudgetOverview(); closeModal();
+    }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  PRINT PREVIEW (matching Word doc format)
+// ═══════════════════════════════════════════════════════════
+function renderPrintPreview(){
+    let area = document.getElementById('printPreviewArea');
+    if(virementRequests.length===0){
+        area.innerHTML = '<div style="text-align:center;padding:3rem;color:#999;">No virement requests to preview. Create requests first.</div>';
+        return;
+    }
+    area.innerHTML = virementRequests.map((r,idx)=>{
+        let tableRows = r.lines.map(l=>`
+            <tr><td>${l.fromName}</td><td style="text-align:right;">${fmt(l.amount)}</td><td>${l.toName}</td></tr>
+        `).join('');
+        return `
+        <div class="print-page">
+            <div class="print-header">
+                <h1>HEART/NSTA TRUST</h1>
+                <h2>COMMUNITY TRAINING INTERVENTION</h2>
+                <h3>REQUEST FOR VIREMENT OF FUNDS</h3>
+            </div>
+            <div class="print-body">
+                <p><strong>Project:</strong> ${r.project}</p>
+                <p>We are requesting approval to vire funds allocated in the <strong>${r.period}</strong> subvention.</p>
+                <p>We are seeking approval to move a total of: <span class="amount-highlight">${fmt(r.total)} (${r.totalWords})</span></p>
+                <p>as per the categories stated below.</p>
+                <p style="margin-top:0.75rem;font-weight:600;">Funds Vired will be re-allocated as follows:</p>
+
+                <table class="print-table">
+                    <thead>
+                        <tr>
+                            <th>From Line Item(s)</th>
+                            <th style="text-align:right;">Amount</th>
+                            <th>To Line Item(s)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${tableRows}
+                    </tbody>
+                </table>
+
+                <div class="print-total-row">
+                    Total = ${fmt(r.total)}
+                </div>
+
+                <p>Regards.</p>
+
+                <div class="print-signatures">
+                    <div class="print-sig-row">
+                        <div class="print-sig-line">
+                            <div>Requested by: ________________</div>
+                            <div>________________</div>
+                            <div>________________</div>
+                            <div>________________</div>
+                        </div>
+                        <div class="print-sig-line" style="border:none;padding-top:0.25rem;">
+                            <div>Name</div><div>Position</div><div>Signature</div><div>Date</div>
+                        </div>
+                    </div>
+                    <div class="print-sig-row">
+                        <div class="print-sig-line">
+                            <div>Approved by: ________________</div>
+                            <div>________________</div>
+                            <div>________________</div>
+                            <div></div>
+                        </div>
+                        <div class="print-sig-line" style="border:none;padding-top:0.25rem;">
+                            <div>Name</div><div>Signature</div><div>Date</div><div></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="print-footer">
+                    CTI/Virement Request/Version 2:0:05/08/2020
+                </div>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function printVirements(){
+    renderPrintPreview();
+    document.querySelectorAll('.tab-panel').forEach(p=>{ p.classList.remove('active'); p.classList.remove('print-active'); });
+    document.getElementById('tab-preview').classList.add('active');
+    document.getElementById('tab-preview').classList.add('print-active');
+    setTimeout(()=>window.print(), 200);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  SAVE / LOAD
+// ═══════════════════════════════════════════════════════════
+function saveAllData(){
+    localStorage.setItem('cesti_virements', JSON.stringify(virementRequests));
+}
+function loadAllData(){
+    try {
+        let saved = localStorage.getItem('cesti_virements');
+        if(saved) virementRequests = JSON.parse(saved);
+    } catch(e){}
+}
+
+// ═══════════════════════════════════════════════════════════
+//  PRE-LOAD EXISTING VIREMENTS FROM WORD DOC DATA
+// ═══════════════════════════════════════════════════════════
+function preloadFromDocData(){
+    if(virementRequests.length > 0) return; // already have data
+
+    const project = "Community Educational and Skills Training Institute and Services Limited (Hazard Skills Training Centre)";
+    const period = "October to December 2025";
+    const presets = [
+        { total:89515.35, totalWords:"Eighty Nine Thousand, Five Hundred and Fifteen Dollars and Thirty Five Cents", lines:[
+            {fromName:'Coordinator Salary', fromId:'coordinator', toName:'Statutory Deductions', toId:'statutory', amount:24807.99},
+            {fromName:'Training Material', fromId:'training_mat', toName:'Statutory Deductions', toId:'statutory', amount:64707.45}
+        ]},
+        { total:44288.25, totalWords:"Forty Four Thousand, Two Hundred and Eighty Eight Dollars and Twenty Five Cents", lines:[
+            {fromName:'Assistant Coordinator', fromId:'asst_coord', toName:'Statutory Deductions', toId:'statutory', amount:16807.05},
+            {fromName:'Math Instructor', fromId:'math_inst', toName:'Travelling', toId:'travelling', amount:27481.20}
+        ]},
+        { total:85292.52, totalWords:"Eighty Five Thousand, Two Hundred and Ninety Two Dollars and Fifty Two Cents", lines:[
+            {fromName:'Training Material', fromId:'training_mat', toName:'Admin Expenses', toId:'admin', amount:85292.52}
+        ]},
+        { total:100000.00, totalWords:"One Hundred Thousand Dollars", lines:[
+            {fromName:'Assessor Fees', fromId:'assessor', toName:'Admin Expenses', toId:'admin', amount:100000.00}
+        ]},
+        { total:96415.28, totalWords:"Ninety Six Thousand, Four Hundred and Fifteen Dollars and Twenty Eight Cents", lines:[
+            {fromName:'Assessor Fees', fromId:'assessor', toName:'Admin Expenses', toId:'admin', amount:35415.28},
+            {fromName:'Assessor Fees', fromId:'assessor', toName:'Maintenance', toId:'maintenance', amount:14584.72},
+            {fromName:'Utilities / McChem', fromId:'utilities', toName:'Maintenance', toId:'maintenance', amount:12225.65},
+            {fromName:'Welding Level 3', fromId:'welding_l3', toName:'Maintenance', toId:'maintenance', amount:8091.99},
+            {fromName:'Electrical Installation L3', fromId:'electrical_l3', toName:'Maintenance', toId:'maintenance', amount:26097.64}
+        ]},
+        { total:100000.00, totalWords:"One Hundred Thousand Dollars", lines:[
+            {fromName:'Assessor Fees', fromId:'assessor', toName:'Maintenance', toId:'maintenance', amount:100000.00}
+        ]},
+        { total:100000.00, totalWords:"One Hundred Thousand Dollars", lines:[
+            {fromName:'Utilities / McChem', fromId:'utilities', toName:'Maintenance', toId:'maintenance', amount:100000.00}
+        ]},
+        { total:100000.00, totalWords:"One Hundred Thousand Dollars", lines:[
+            {fromName:'Welding Level 3', fromId:'welding_l3', toName:'Maintenance', toId:'maintenance', amount:100000.00}
+        ]},
+        { total:100000.00, totalWords:"One Hundred Thousand Dollars", lines:[
+            {fromName:'Welding Level 3', fromId:'welding_l3', toName:'Maintenance', toId:'maintenance', amount:100000.00}
+        ]},
+        { total:100000.00, totalWords:"One Hundred Thousand Dollars", lines:[
+            {fromName:'Welding Level 3', fromId:'welding_l3', toName:'Maintenance', toId:'maintenance', amount:100000.00}
+        ]},
+        { total:81994.35, totalWords:"Eighty One Thousand, Nine Hundred and Ninety Four Dollars and Thirty Five Cents", lines:[
+            {fromName:'Electrical Installation L3', fromId:'electrical_l3', toName:'Lunch', toId:'lunch', amount:81994.35}
+        ]},
+        { total:86548.64, totalWords:"Eighty Six Thousand, Five Hundred and Forty Eight Dollars and Sixty Four Cents", lines:[
+            {fromName:'Welding Instructor Regular', fromId:'welding_inst', toName:'Lunch', toId:'lunch', amount:20673.33},
+            {fromName:'BT Instructor', fromId:'bt_inst', toName:'Lunch', toId:'lunch', amount:20673.33},
+            {fromName:'Electrical Instructor', fromId:'electrical_inst', toName:'Lunch', toId:'lunch', amount:20673.33},
+            {fromName:'BNV Welding', fromId:'bnv_welding', toName:'Lunch', toId:'lunch', amount:20673.33},
+            {fromName:'Data Instructor', fromId:'data_inst', toName:'Lunch', toId:'lunch', amount:1927.66},
+            {fromName:'Entrepreneurship Instructor', fromId:'entrep_inst', toName:'Lunch', toId:'lunch', amount:1927.66}
+        ]},
+        { total:79996.27, totalWords:"Seventy Nine Thousand, Nine Hundred and Ninety Six Dollars and Twenty Seven Cents", lines:[
+            {fromName:'BNV Electrical', fromId:'bnv_electrical', toName:'Lunch', toId:'lunch', amount:20673.33},
+            {fromName:'Remedial English', fromId:'remedial_eng', toName:'Lunch', toId:'lunch', amount:59322.94}
+        ]},
+        { total:100000.00, totalWords:"One Hundred Thousand Dollars", lines:[
+            {fromName:'Electrical Installation L3', fromId:'electrical_l3', toName:'Lunch', toId:'lunch', amount:100000.00}
+        ]},
+        { total:100000.00, totalWords:"One Hundred Thousand Dollars", lines:[
+            {fromName:'Electrical Installation L3', fromId:'electrical_l3', toName:'Lunch', toId:'lunch', amount:100000.00}
+        ]},
+        { total:100000.00, totalWords:"One Hundred Thousand Dollars", lines:[
+            {fromName:'Remedial English', fromId:'remedial_eng', toName:'Lunch', toId:'lunch', amount:100000.00}
+        ]},
+        { total:51460.74, totalWords:"Fifty One Thousand, Four Hundred and Sixty Dollars and Seventy Four Cents", lines:[
+            {fromName:'Electrical Installation L3', fromId:'electrical_l3', toName:'Lunch', toId:'lunch', amount:51460.74}
+        ]}
+    ];
+
+    presets.forEach((p,i)=>{
+        virementRequests.push({
+            id: Date.now()+i,
+            date: '2025-10-01',
+            project: project,
+            period: period,
+            requestedBy: '',
+            position: 'Assistant Coordinator',
+            total: p.total,
+            totalWords: p.totalWords,
+            lines: p.lines,
+            status: 'Pending'
+        });
+    });
+    saveAllData();
+    renderRequests();
+    renderBudgetOverview();
+    renderPrintPreview();
+}
+
+// Check if first visit
+if(virementRequests.length === 0){
+    preloadFromDocData();
+}
+</script>
+</body>
+</html>
