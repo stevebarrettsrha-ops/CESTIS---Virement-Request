@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HEART/NSTA Trust — Virement Request Dashboard</title>
+    <title>C.E.S.T.I.S — Virement Request Dashboard</title>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -47,16 +47,17 @@
             display: flex; align-items: center; gap: 1rem;
         }
         .topbar-brand .logo {
-            width: 42px; height: 42px;
+            min-width: 48px; height: 48px; padding: 0 8px;
             background: linear-gradient(135deg, var(--gold), var(--gold-dim));
             border-radius: 8px;
             display: grid; place-items: center;
-            font-weight: 700; font-size: 0.7rem; color: var(--navy);
-            letter-spacing: 1px; line-height: 1;
+            font-weight: 700; font-size: 0.65rem; color: var(--navy);
+            letter-spacing: 1.5px; line-height: 1;
+            text-align: center; white-space: nowrap;
         }
         .topbar-brand h1 {
             font-family: 'Playfair Display', serif;
-            font-size: 1.15rem; color: white; letter-spacing: 0.5px;
+            font-size: 0.85rem; color: white; letter-spacing: 0.5px;
         }
         .topbar-brand p {
             font-size: 0.72rem; color: var(--gold); text-transform: uppercase;
@@ -275,7 +276,7 @@
             text-align: center; margin-bottom: 1.5rem;
             border-bottom: 3px solid #000; padding-bottom: 1rem;
         }
-        .print-header h1 { font-size: 1.3rem; font-weight:bold; margin-bottom:0.15rem; color: #000; font-family: 'DM Sans', Arial, sans-serif; }
+        .print-header h1 { font-size: 1.05rem; font-weight:bold; margin-bottom:0.15rem; color: #000; font-family: 'DM Sans', Arial, sans-serif; }
         .print-header h2 { font-size: 0.9rem; font-weight:normal; color: #333; }
         .print-header h3 { font-size: 1.1rem; font-weight:bold; margin-top:0.5rem; letter-spacing: 1px; color: #000; }
         .print-body p { font-size:0.88rem; line-height:1.7; color:#222; margin-bottom:0.5rem; }
@@ -385,10 +386,10 @@
 <!-- ═══════════════ TOP BAR ═══════════════ -->
 <div class="topbar">
     <div class="topbar-brand">
-        <div class="logo">HEART<br>NSTA</div>
+        <div class="logo">C.E.S.T.I.S</div>
         <div>
-            <h1>HEART/NSTA Trust</h1>
-            <p>Community Training Intervention — Virement Dashboard</p>
+            <h1>Community Educational and Skills Training Institute and Services Limited</h1>
+            <p>Virement Dashboard</p>
         </div>
     </div>
     <div class="topbar-actions no-print">
@@ -495,7 +496,7 @@
 <div id="tab-preview" class="tab-panel">
     <div class="no-print" style="text-align:center;margin-bottom:1.5rem;">
         <button class="btn-gold" onclick="printVirements()" style="padding:0.75rem 2rem;font-size:0.9rem;">🖨️ Print All Virement Forms / Save as PDF</button>
-        <p style="font-size:0.75rem;color:var(--text-dim);margin-top:0.5rem;">Each virement request generates a separate form page matching the official HEART/NSTA Trust format.</p>
+        <p style="font-size:0.75rem;color:var(--text-dim);margin-top:0.5rem;">Each virement request generates a separate form page matching the official C.E.S.T.I.S format.</p>
     </div>
     <div id="printPreviewArea" class="print-frame"></div>
 </div>
@@ -833,8 +834,8 @@ function renderPrintPreview(){
         return `
         <div class="print-page">
             <div class="print-header">
-                <h1>HEART/NSTA TRUST</h1>
-                <h2>COMMUNITY TRAINING INTERVENTION</h2>
+                <h1>COMMUNITY EDUCATIONAL AND SKILLS TRAINING INSTITUTE AND SERVICES LIMITED</h1>
+                <h2>C.E.S.T.I.S</h2>
                 <h3>REQUEST FOR VIREMENT OF FUNDS</h3>
             </div>
             <div class="print-body">
