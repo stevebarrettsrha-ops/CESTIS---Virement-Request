@@ -299,20 +299,6 @@
             border-top: 2px solid #000;
             color: #000;
         }
-        .print-signatures {
-            margin-top: 2rem; padding-top: 1rem;
-        }
-        .print-sig-row {
-            margin-bottom: 1.5rem;
-        }
-        .print-sig-row .sig-label {
-            font-weight:600; font-size:0.85rem; color:#000; margin-bottom:0.5rem;
-        }
-        .print-sig-line {
-            display: grid; grid-template-columns: 1fr 1fr 1fr 120px; gap: 1rem;
-            border-bottom: 1px solid #000; padding-bottom: 0.25rem;
-            font-size: 0.75rem; color: #666;
-        }
         .print-footer {
             border-top: 1px solid #ccc; padding-top: 0.5rem;
             font-size: 0.72rem; color: #999; margin-top: 1rem;
@@ -862,32 +848,6 @@ function renderPrintPreview(){
                     Total = ${fmt(r.total)}
                 </div>
 
-                <p>Regards.</p>
-
-                <div class="print-signatures">
-                    <div class="print-sig-row">
-                        <div class="print-sig-line">
-                            <div>Requested by: ________________</div>
-                            <div>________________</div>
-                            <div>________________</div>
-                            <div>________________</div>
-                        </div>
-                        <div class="print-sig-line" style="border:none;padding-top:0.25rem;">
-                            <div>Name</div><div>Position</div><div>Signature</div><div>Date</div>
-                        </div>
-                    </div>
-                    <div class="print-sig-row">
-                        <div class="print-sig-line">
-                            <div>Approved by: ________________</div>
-                            <div>________________</div>
-                            <div>________________</div>
-                            <div></div>
-                        </div>
-                        <div class="print-sig-line" style="border:none;padding-top:0.25rem;">
-                            <div>Name</div><div>Signature</div><div>Date</div><div></div>
-                        </div>
-                    </div>
-                </div>
 
                 <div class="print-footer">
                     CTI/Virement Request/Version 2:0:05/08/2020
