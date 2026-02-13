@@ -496,6 +496,97 @@
             border: 1px solid var(--border);
         }
         .google-auth-modal .btn-secondary:hover { background: rgba(255,255,255,0.05); }
+
+        /* ─── FOLDER BROWSER MODAL ─── */
+        .folder-browser-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7); display: flex;
+            align-items: center; justify-content: center; z-index: 10000;
+        }
+        .folder-browser {
+            background: var(--card); border: 1px solid var(--border);
+            border-radius: 14px; max-width: 620px; width: 95%;
+            max-height: 85vh; display: flex; flex-direction: column;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+        }
+        .folder-browser-header {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 1.1rem 1.5rem; border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+        .folder-browser-header h2 {
+            color: var(--gold); font-size: 1rem; margin: 0;
+            display: flex; align-items: center; gap: 0.5rem; font-weight: 700;
+        }
+        .folder-browser-close {
+            background: transparent; border: none; color: var(--text-dim);
+            font-size: 1.4rem; cursor: pointer; padding: 0.15rem 0.35rem;
+            border-radius: 6px; transition: all 0.2s; line-height: 1;
+        }
+        .folder-browser-close:hover { color: var(--text); background: rgba(255,255,255,0.08); }
+        .folder-browser-body {
+            padding: 0.75rem 1rem; overflow-y: auto; flex: 1;
+        }
+        .folder-browser-empty {
+            text-align: center; padding: 2.5rem 1rem; color: var(--slate);
+        }
+        .folder-browser-empty span { font-size: 2rem; display: block; margin-bottom: 0.75rem; }
+        .folder-file-item {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0.85rem 1rem; border-radius: 10px;
+            background: var(--surface); border: 1px solid rgba(255,255,255,0.04);
+            margin-bottom: 0.5rem; transition: border-color 0.2s;
+        }
+        .folder-file-item:hover { border-color: var(--border); }
+        .folder-file-info { display: flex; align-items: center; gap: 0.75rem; min-width: 0; flex: 1; }
+        .folder-file-icon {
+            width: 36px; height: 36px; border-radius: 8px;
+            background: linear-gradient(135deg, #f59e0b, #f97316);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1rem; flex-shrink: 0;
+        }
+        .folder-file-details { min-width: 0; }
+        .folder-file-name {
+            font-size: 0.82rem; font-weight: 600; color: var(--text);
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+            max-width: 300px;
+        }
+        .folder-file-meta {
+            font-size: 0.7rem; color: var(--slate-dim); margin-top: 2px;
+            display: flex; gap: 0.75rem; flex-wrap: wrap;
+        }
+        .folder-file-actions { display: flex; gap: 0.4rem; flex-shrink: 0; margin-left: 0.75rem; }
+        .folder-btn-download {
+            display: inline-flex; align-items: center; gap: 4px;
+            padding: 0.35rem 0.7rem; border: none; border-radius: 6px;
+            background: linear-gradient(135deg, #0ea5e9, #6366f1);
+            color: white; font-family: inherit; font-size: 0.72rem;
+            font-weight: 600; cursor: pointer; transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .folder-btn-download:hover { transform: translateY(-1px); box-shadow: 0 3px 10px rgba(14,165,233,0.3); }
+        .folder-btn-delete {
+            display: inline-flex; align-items: center; justify-content: center;
+            padding: 0.35rem 0.5rem; border: none; border-radius: 6px;
+            background: rgba(244,63,94,0.12); color: var(--rose);
+            font-family: inherit; font-size: 0.8rem; cursor: pointer;
+            transition: all 0.2s;
+        }
+        .folder-btn-delete:hover { background: rgba(244,63,94,0.25); transform: translateY(-1px); }
+        .folder-browser-footer {
+            padding: 0.85rem 1.5rem; border-top: 1px solid var(--border);
+            text-align: center; flex-shrink: 0;
+        }
+        .folder-browser-footer a {
+            color: var(--sky); font-size: 0.8rem; font-weight: 600;
+            text-decoration: none; display: inline-flex; align-items: center; gap: 0.4rem;
+        }
+        .folder-browser-footer a:hover { text-decoration: underline; }
+        @media (max-width: 600px) {
+            .folder-file-name { max-width: 160px; }
+            .folder-file-item { flex-wrap: wrap; gap: 0.5rem; }
+            .folder-file-actions { margin-left: 0; width: 100%; justify-content: flex-end; }
+        }
     </style>
 </head>
 <body>
@@ -1850,24 +1941,130 @@ async function browseBackupFiles() {
 
         const data = await response.json();
 
+        const driveLink = `https://drive.google.com/drive/folders/${GOOGLE_DRIVE_CONFIG.FOLDER_ID}`;
+
+        let fileListHTML = '';
         if (!data.files || data.files.length === 0) {
-            alert('📁 No backup files found in the Google Drive folder.');
-            return;
+            fileListHTML = `
+                <div class="folder-browser-empty">
+                    <span>📂</span>
+                    <p>No backup files found in the Google Drive folder.</p>
+                </div>`;
+        } else {
+            data.files.forEach(file => {
+                const modified = new Date(file.modifiedTime);
+                const dateStr = modified.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+                const timeStr = modified.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+                const sizeStr = file.size ? formatFileSize(parseInt(file.size)) : '—';
+                fileListHTML += `
+                    <div class="folder-file-item" id="folder-file-${file.id}">
+                        <div class="folder-file-info">
+                            <div class="folder-file-icon">📄</div>
+                            <div class="folder-file-details">
+                                <div class="folder-file-name" title="${file.name}">${file.name}</div>
+                                <div class="folder-file-meta">
+                                    <span>📅 ${dateStr} at ${timeStr}</span>
+                                    <span>📦 ${sizeStr}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="folder-file-actions">
+                            <button class="folder-btn-download" onclick="downloadBackupFile('${file.id}', '${file.name.replace(/'/g, "\\'")}')">
+                                ⬇ Download
+                            </button>
+                            <button class="folder-btn-delete" onclick="deleteBackupFile('${file.id}', '${file.name.replace(/'/g, "\\'")}', this)" title="Delete file">
+                                🗑
+                            </button>
+                        </div>
+                    </div>`;
+            });
         }
 
-        let fileList = '📁 BACKUP FILES IN GOOGLE DRIVE\n\n';
-        data.files.forEach((file, i) => {
-            const modified = new Date(file.modifiedTime).toLocaleString();
-            fileList += `${i + 1}. ${file.name}\n   Modified: ${modified}\n\n`;
-        });
-        fileList += `Total: ${data.files.length} file(s)`;
+        const fileCount = data.files ? data.files.length : 0;
+        const modalHTML = `
+        <div id="folderBrowserOverlay" class="folder-browser-overlay" onclick="if(event.target===this)closeFolderBrowser()">
+            <div class="folder-browser">
+                <div class="folder-browser-header">
+                    <h2>📁 Cloud Folder — All Backups${fileCount > 0 ? ' <span style="font-size:0.75rem;font-weight:500;color:var(--slate);margin-left:0.25rem;">(' + fileCount + ')</span>' : ''}</h2>
+                    <button class="folder-browser-close" onclick="closeFolderBrowser()">×</button>
+                </div>
+                <div class="folder-browser-body">
+                    ${fileListHTML}
+                </div>
+                <div class="folder-browser-footer">
+                    <a href="${driveLink}" target="_blank" rel="noopener noreferrer">
+                        🔗 Open folder in Google Drive
+                    </a>
+                </div>
+            </div>
+        </div>`;
 
-        alert(fileList);
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
 
     } catch (error) {
         console.error('Error browsing backup files:', error);
         setCloudSyncing(false);
-        alert(`❌ Failed to browse backups: ${error.message}`);
+        alert(`Failed to browse backups: ${error.message}`);
+    }
+}
+
+function closeFolderBrowser() {
+    const overlay = document.getElementById('folderBrowserOverlay');
+    if (overlay) overlay.remove();
+}
+
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+}
+
+async function downloadBackupFile(fileId, fileName) {
+    try {
+        const response = await fetch(
+            `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
+            { headers: { 'Authorization': `Bearer ${googleAccessToken}` } }
+        );
+        if (!response.ok) throw new Error('Download failed');
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    } catch (error) {
+        console.error('Error downloading file:', error);
+        alert('Failed to download file: ' + error.message);
+    }
+}
+
+async function deleteBackupFile(fileId, fileName, btnElement) {
+    if (!confirm(`Delete "${fileName}"?\n\nThis will permanently remove this backup from Google Drive.`)) return;
+    try {
+        const response = await fetch(
+            `https://www.googleapis.com/drive/v3/files/${fileId}`,
+            { method: 'DELETE', headers: { 'Authorization': `Bearer ${googleAccessToken}` } }
+        );
+        if (!response.ok) throw new Error('Delete failed');
+        const item = document.getElementById('folder-file-' + fileId);
+        if (item) {
+            item.style.transition = 'opacity 0.3s, transform 0.3s';
+            item.style.opacity = '0';
+            item.style.transform = 'translateX(20px)';
+            setTimeout(() => item.remove(), 300);
+        }
+        if (fileId === cloudFileId) {
+            cloudFileId = null;
+            localStorage.removeItem('schoolDashboardCloudFileId');
+        }
+    } catch (error) {
+        console.error('Error deleting file:', error);
+        alert('Failed to delete file: ' + error.message);
     }
 }
 
