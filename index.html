@@ -385,6 +385,22 @@
         ::-webkit-scrollbar-thumb { background: var(--navy-light); border-radius:3px; }
 
         /* ─── CLOUD SYNC DROPDOWN ─── */
+        .cloud-sync-wrapper {
+            display: flex; align-items: center; gap: 0.5rem;
+        }
+        .cloud-status-label {
+            display: flex; align-items: center; gap: 6px;
+            font-size: 0.65rem; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 1.5px; color: var(--text-dim);
+            padding: 0.35rem 0.6rem;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+        }
+        .cloud-status-label.connected { color: var(--emerald); border-color: rgba(16,185,129,0.3); }
+        .cloud-status-label .status-text {
+            font-size: 0.65rem; font-weight: 600; letter-spacing: 0.5px;
+        }
         .cloud-sync-btn {
             display: flex; align-items: center; gap: 6px;
             padding: 0.5rem 1rem; background: transparent;
@@ -397,27 +413,49 @@
         .cloud-dropdown { position: relative; display: inline-block; }
         .cloud-dropdown-content {
             display: none; position: absolute; right: 0; top: 100%;
-            background: var(--card); min-width: 200px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.4);
-            border-radius: 8px; border: 1px solid var(--border);
-            z-index: 1000; overflow: hidden; margin-top: 4px;
+            background: var(--card); min-width: 240px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            border-radius: 10px; border: 1px solid var(--border);
+            z-index: 1000; overflow: hidden; margin-top: 6px;
+            padding: 6px;
         }
         .cloud-dropdown-content.show { display: block; }
         .cloud-dropdown-item {
-            padding: 10px 16px; display: flex; align-items: center;
-            gap: 10px; cursor: pointer; font-size: 0.85rem;
-            color: var(--text); transition: background-color 0.2s;
+            padding: 10px 14px; display: flex; align-items: center;
+            gap: 10px; cursor: pointer; font-size: 0.82rem;
+            color: white; font-weight: 600;
+            border-radius: 8px; margin-bottom: 4px;
+            transition: transform 0.15s, box-shadow 0.15s;
         }
-        .cloud-dropdown-item:hover { background-color: rgba(255,255,255,0.05); }
-        .cloud-dropdown-item.danger { color: var(--rose); }
-        .cloud-dropdown-item.danger:hover { background-color: rgba(244,63,94,0.1); }
+        .cloud-dropdown-item:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+        .cloud-dropdown-item:active { transform: translateY(0); }
+        .cloud-dropdown-item.item-save {
+            background: linear-gradient(135deg, #0ea5e9, #6366f1);
+        }
+        .cloud-dropdown-item.item-sync {
+            background: linear-gradient(135deg, #10b981, #059669);
+        }
+        .cloud-dropdown-item.item-merge {
+            background: linear-gradient(135deg, #a855f7, #ec4899);
+        }
+        .cloud-dropdown-item.item-browse {
+            background: linear-gradient(135deg, #f59e0b, #f97316);
+        }
+        .cloud-dropdown-item.danger {
+            background: transparent; color: var(--rose);
+            font-weight: 500; margin-bottom: 0;
+        }
+        .cloud-dropdown-item.danger:hover {
+            background-color: rgba(244,63,94,0.1);
+            transform: none; box-shadow: none;
+        }
         .cloud-dropdown-divider { height: 1px; background: var(--border); margin: 4px 0; }
-        .last-sync-info { padding: 6px 16px; font-size: 0.75rem; color: var(--slate); }
+        .last-sync-info { padding: 6px 14px; font-size: 0.72rem; color: var(--slate); }
         .cloud-status-dot {
             width: 8px; height: 8px; border-radius: 50%;
             background: var(--slate); display: inline-block;
         }
-        .cloud-status-dot.connected { background: var(--emerald); }
+        .cloud-status-dot.connected { background: var(--emerald); box-shadow: 0 0 6px rgba(16,185,129,0.5); }
         .cloud-status-dot.syncing { background: #f59e0b; animation: pulse 1s infinite; }
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
         .spinning { display: inline-block; animation: spin 1s linear infinite; }
@@ -484,36 +522,47 @@
             </button>
         </div>
         <div id="cloudConnected" style="display: none;">
-            <div class="cloud-dropdown">
-                <button class="cloud-sync-btn" onclick="toggleCloudMenu()">
-                    <span id="cloudMenuIcon">☁️</span>
-                    <span>Cloud</span>
-                    <span style="font-size: 0.6rem;">▼</span>
-                </button>
-                <div class="cloud-dropdown-content" id="cloudDropdownMenu">
-                    <div class="cloud-dropdown-item" onclick="saveToCloud()">
-                        <span>💾</span>
-                        <span>Save to Cloud</span>
-                    </div>
-                    <div class="cloud-dropdown-item" onclick="syncFromCloud()">
-                        <span>🔄</span>
-                        <span>Sync from Cloud</span>
-                    </div>
-                    <div class="cloud-dropdown-item" onclick="mergeFromCloud()">
-                        <span>🔀</span>
-                        <span>Merge from Cloud</span>
-                    </div>
-                    <div class="cloud-dropdown-divider"></div>
-                    <div class="last-sync-info" id="lastSyncInfo">
-                        Last sync: Never
-                    </div>
-                    <div class="last-sync-info" id="lastSavedByInfo" style="color: var(--slate-dim); font-size: 0.7rem;">
-                        Last saved by: --
-                    </div>
-                    <div class="cloud-dropdown-divider"></div>
-                    <div class="cloud-dropdown-item danger" onclick="disconnectFromGoogleDrive()">
-                        <span>🔌</span>
-                        <span>Disconnect</span>
+            <div class="cloud-sync-wrapper">
+                <div class="cloud-status-label connected" id="cloudStatusLabel">
+                    <span>CLOUD SYNC</span>
+                    <span id="cloudStatusDotConnected" class="cloud-status-dot connected"></span>
+                    <span class="status-text" id="cloudStatusTextConnected">Connected</span>
+                </div>
+                <div class="cloud-dropdown">
+                    <button class="cloud-sync-btn" onclick="toggleCloudMenu()">
+                        <span id="cloudMenuIcon">☁️</span>
+                        <span>Cloud</span>
+                        <span style="font-size: 0.6rem;">▼</span>
+                    </button>
+                    <div class="cloud-dropdown-content" id="cloudDropdownMenu">
+                        <div class="cloud-dropdown-item item-save" onclick="saveToCloud()">
+                            <span>💾</span>
+                            <span>Save to Cloud</span>
+                        </div>
+                        <div class="cloud-dropdown-item item-sync" onclick="syncFromCloud()">
+                            <span>🔄</span>
+                            <span>Sync from Cloud</span>
+                        </div>
+                        <div class="cloud-dropdown-item item-merge" onclick="mergeFromCloud()">
+                            <span>🔀</span>
+                            <span>Merge from Cloud</span>
+                        </div>
+                        <div class="cloud-dropdown-item item-browse" onclick="browseBackupFiles()">
+                            <span>📁</span>
+                            <span>Browse All Backups</span>
+                        </div>
+                        <div class="cloud-dropdown-divider"></div>
+                        <div class="last-sync-info" id="lastSyncInfo">
+                            Last sync: Never
+                        </div>
+                        <div class="last-sync-info" id="lastSavedByInfo" style="color: var(--slate-dim); font-size: 0.7rem;">
+                            Last saved by: --
+                        </div>
+                        <div class="cloud-dropdown-divider"></div>
+                        <div class="cloud-dropdown-item danger" onclick="disconnectFromGoogleDrive()">
+                            <span>🔌</span>
+                            <span>Disconnect</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1183,15 +1232,24 @@ function setCloudSyncing(syncing) {
     const statusDot = document.getElementById('cloudStatusDot');
     const statusText = document.getElementById('cloudStatusText');
     const menuIcon = document.getElementById('cloudMenuIcon');
+    const connectedDot = document.getElementById('cloudStatusDotConnected');
+    const connectedText = document.getElementById('cloudStatusTextConnected');
+    const statusLabel = document.getElementById('cloudStatusLabel');
 
     if (syncing) {
         statusDot.className = 'cloud-status-dot syncing';
         statusText.textContent = 'Syncing...';
         menuIcon.innerHTML = '<span class="spinning">🔄</span>';
+        if (connectedDot) connectedDot.className = 'cloud-status-dot syncing';
+        if (connectedText) connectedText.textContent = 'Syncing...';
+        if (statusLabel) { statusLabel.className = 'cloud-status-label connected'; }
     } else {
         statusDot.className = 'cloud-status-dot connected';
         statusText.textContent = 'Connected';
         menuIcon.textContent = '☁️';
+        if (connectedDot) connectedDot.className = 'cloud-status-dot connected';
+        if (connectedText) connectedText.textContent = 'Connected';
+        if (statusLabel) { statusLabel.className = 'cloud-status-label connected'; }
     }
 }
 
@@ -1764,6 +1822,52 @@ async function mergeFromCloud() {
         } else {
             alert(`❌ Failed to merge from cloud: ${error.message}`);
         }
+    }
+}
+
+// ─── BROWSE ALL BACKUPS ───
+async function browseBackupFiles() {
+    if (!isCloudConnected || !googleAccessToken) {
+        alert('Please connect to Google Drive first');
+        return;
+    }
+
+    const menu = document.getElementById('cloudDropdownMenu');
+    menu.classList.remove('show');
+
+    setCloudSyncing(true);
+
+    try {
+        const query = `'${GOOGLE_DRIVE_CONFIG.FOLDER_ID}' in parents and trashed=false and mimeType='application/json'`;
+        const response = await fetch(
+            `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name,modifiedTime,size)&orderBy=modifiedTime desc`,
+            { headers: { 'Authorization': `Bearer ${googleAccessToken}` } }
+        );
+
+        setCloudSyncing(false);
+
+        if (!response.ok) throw new Error('Failed to list files');
+
+        const data = await response.json();
+
+        if (!data.files || data.files.length === 0) {
+            alert('📁 No backup files found in the Google Drive folder.');
+            return;
+        }
+
+        let fileList = '📁 BACKUP FILES IN GOOGLE DRIVE\n\n';
+        data.files.forEach((file, i) => {
+            const modified = new Date(file.modifiedTime).toLocaleString();
+            fileList += `${i + 1}. ${file.name}\n   Modified: ${modified}\n\n`;
+        });
+        fileList += `Total: ${data.files.length} file(s)`;
+
+        alert(fileList);
+
+    } catch (error) {
+        console.error('Error browsing backup files:', error);
+        setCloudSyncing(false);
+        alert(`❌ Failed to browse backups: ${error.message}`);
     }
 }
 
