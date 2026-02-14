@@ -1593,6 +1593,10 @@ async function findExistingBackupFile() {
                 cloudFileId = data.files[0].id;
                 localStorage.setItem('schoolDashboardCloudFileId', cloudFileId);
                 console.log('Found existing backup file:', cloudFileId);
+            } else {
+                cloudFileId = null;
+                localStorage.removeItem('schoolDashboardCloudFileId');
+                console.log('No backup file found with name:', GOOGLE_DRIVE_CONFIG.BACKUP_FILE_NAME);
             }
         }
     } catch (error) {
@@ -1676,22 +1680,15 @@ async function saveToCloud() {
         let response;
 
         if (cloudFileId) {
-            const updateMetadata = {
-                name: GOOGLE_DRIVE_CONFIG.BACKUP_FILE_NAME
-            };
-
-            const updateFormData = new FormData();
-            updateFormData.append('metadata', new Blob([JSON.stringify(updateMetadata)], { type: 'application/json' }));
-            updateFormData.append('file', blob);
-
             response = await fetch(
-                `https://www.googleapis.com/upload/drive/v3/files/${cloudFileId}?uploadType=multipart`,
+                `https://www.googleapis.com/upload/drive/v3/files/${cloudFileId}?uploadType=media`,
                 {
                     method: 'PATCH',
                     headers: {
-                        'Authorization': `Bearer ${googleAccessToken}`
+                        'Authorization': `Bearer ${googleAccessToken}`,
+                        'Content-Type': 'application/json'
                     },
-                    body: updateFormData
+                    body: blob
                 }
             );
         } else {
