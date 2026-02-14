@@ -379,6 +379,47 @@
             .print-page { padding: 1.5rem; }
         }
 
+        /* ─── QUARTER SELECTOR ─── */
+        .quarter-bar {
+            display: flex; align-items: center; gap: 0.75rem;
+            margin-bottom: 1.25rem; flex-wrap: wrap;
+        }
+        .quarter-tabs {
+            display: flex; gap: 0; background: var(--surface);
+            border: 1px solid var(--border); border-radius: 8px;
+            overflow: hidden;
+        }
+        .quarter-tab-btn {
+            padding: 0.55rem 1.1rem; border: none; background: transparent;
+            color: var(--text-dim); font-family: inherit; font-size: 0.78rem;
+            font-weight: 600; cursor: pointer; transition: all 0.2s;
+            letter-spacing: 0.3px; white-space: nowrap;
+        }
+        .quarter-tab-btn:hover { color: var(--text); background: rgba(255,255,255,0.04); }
+        .quarter-tab-btn.active { background: var(--gold); color: var(--navy); }
+        .quarter-tab-btn + .quarter-tab-btn { border-left: 1px solid var(--border); }
+        .quarter-fy {
+            font-size: 0.78rem; color: var(--gold); font-weight: 700;
+            letter-spacing: 1px; font-family: 'DM Sans', sans-serif;
+        }
+        .quarter-sync-btn {
+            margin-left: auto; padding: 0.45rem 0.9rem;
+            background: linear-gradient(135deg, #10b981, #059669);
+            border: none; border-radius: 6px; color: white;
+            font-family: inherit; font-size: 0.75rem; font-weight: 600;
+            cursor: pointer; transition: all 0.2s; display: flex;
+            align-items: center; gap: 0.4rem;
+        }
+        .quarter-sync-btn:hover { transform: translateY(-1px); box-shadow: 0 3px 10px rgba(16,185,129,0.3); }
+        .quarter-sync-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+        .budget-source-badge {
+            font-size: 0.65rem; padding: 0.2rem 0.6rem; border-radius: 4px;
+            font-weight: 600; letter-spacing: 0.5px;
+        }
+        .budget-source-badge.synced { background: rgba(16,185,129,0.15); color: var(--emerald); }
+        .budget-source-badge.default { background: rgba(148,163,184,0.1); color: var(--slate); }
+        .budget-source-badge.cloud { background: rgba(56,189,248,0.15); color: var(--sky); }
+
         /* scrollbar */
         ::-webkit-scrollbar { width:6px; }
         ::-webkit-scrollbar-track { background: var(--navy); }
@@ -643,6 +684,11 @@
                             <span>Browse All Backups</span>
                         </div>
                         <div class="cloud-dropdown-divider"></div>
+                        <div class="cloud-dropdown-item" onclick="syncBudgetFromCloudMenu()" style="background: linear-gradient(135deg, #f59e0b, #d97706);">
+                            <span>📊</span>
+                            <span>Sync Budget from Cashbook</span>
+                        </div>
+                        <div class="cloud-dropdown-divider"></div>
                         <div class="last-sync-info" id="lastSyncInfo">
                             Last sync: Never
                         </div>
@@ -675,11 +721,25 @@
 
 <!-- ─── TAB 1: BUDGET OVERVIEW ─── -->
 <div id="tab-overview" class="tab-panel active">
+    <!-- Quarter Selector -->
+    <div class="quarter-bar">
+        <div class="quarter-tabs">
+            <button class="quarter-tab-btn" onclick="switchVirementQuarter(1)">Q1 Apr-Jun</button>
+            <button class="quarter-tab-btn" onclick="switchVirementQuarter(2)">Q2 Jul-Sep</button>
+            <button class="quarter-tab-btn active" onclick="switchVirementQuarter(3)">Q3 Oct-Dec</button>
+            <button class="quarter-tab-btn" onclick="switchVirementQuarter(4)">Q4 Jan-Mar</button>
+        </div>
+        <span class="quarter-fy" id="quarterFYLabel">FY 2025/2026</span>
+        <span class="budget-source-badge default" id="budgetSourceBadge">DEFAULT DATA</span>
+        <button class="quarter-sync-btn" onclick="syncBudgetFromCashbook()" id="syncBudgetBtn">
+            <span>🔄</span> Sync Budget from Cashbook
+        </button>
+    </div>
     <div class="stat-row" id="statsRow"></div>
     <div class="chart-grid" id="chartArea"></div>
     <div class="table-wrap">
         <div class="table-header">
-            <h3>Budget Line Items — OCT to DEC 2025</h3>
+            <h3 id="budgetTableHeader">Budget Line Items — OCT to DEC 2025</h3>
             <span style="font-size:0.75rem;color:var(--text-dim)">CESTI / Hazard Skills Training Centre</span>
         </div>
         <div style="overflow-x:auto;">
@@ -783,9 +843,69 @@
 
 <script>
 // ═══════════════════════════════════════════════════════════
+//  QUARTER CONFIGURATION (matches Cashbook Dashboard)
+// ═══════════════════════════════════════════════════════════
+const QUARTER_META = [
+    { q:1, label:'Q1 Apr-Jun', shortLabel:'Apr-Jun', months:['apr','may','jun'], monthNums:[4,5,6], monthNames:['April','May','June'] },
+    { q:2, label:'Q2 Jul-Sep', shortLabel:'Jul-Sep', months:['jul','aug','sep'], monthNums:[7,8,9], monthNames:['July','August','September'] },
+    { q:3, label:'Q3 Oct-Dec', shortLabel:'Oct-Dec', months:['oct','nov','dec'], monthNums:[10,11,12], monthNames:['October','November','December'] },
+    { q:4, label:'Q4 Jan-Mar', shortLabel:'Jan-Mar', months:['jan','feb','mar'], monthNums:[1,2,3], monthNames:['January','February','March'] }
+];
+
+// Active quarter state for the Virement Dashboard
+let virementActiveFY = '2025/2026';
+let virementActiveQ = 3;
+let budgetDataSource = 'default'; // 'default', 'cashbook-local', 'cashbook-cloud'
+
+// Mapping from Cashbook Dashboard category names to Virement Dashboard IDs/names
+const CASHBOOK_CATEGORY_MAP = {
+    'Coordinator Salary':       { id:'coordinator',     name:'Coordinator Salary' },
+    'Asst. Coordinator':        { id:'asst_coord',      name:'Assistant Coordinator' },
+    'Statutory Deductions':     { id:'statutory',        name:'Statutory Deductions' },
+    'Admin Expenses':           { id:'admin',            name:'Admin Expenses' },
+    'Training Material':        { id:'training_mat',     name:'Training Material' },
+    'Assessor Fees':            { id:'assessor',         name:'Assessor Fees' },
+    'Utilities':                { id:'utilities',        name:'Utilities / McChem' },
+    'Maintenance':              { id:'maintenance',      name:'Maintenance' },
+    'Welding L3 Instructor':    { id:'welding_l3',       name:'Welding Level 3' },
+    'Electrical L3 Instructor': { id:'electrical_l3',    name:'Electrical Installation L3' },
+    'Welding Instructor':       { id:'welding_inst',     name:'Welding Instructor Regular' },
+    'BT Instructor':            { id:'bt_inst',          name:'BT Instructor' },
+    'Electrical Instructor':    { id:'electrical_inst',  name:'Electrical Instructor' },
+    'BNV Welding Instructor':   { id:'bnv_welding',      name:'BNV Welding' },
+    'BNV Electrical Instructor':{ id:'bnv_electrical',   name:'BNV Electrical' },
+    'Data Instructor':          { id:'data_inst',        name:'Data Instructor' },
+    'Remedial English':         { id:'remedial_eng',     name:'Remedial English' },
+    'Personal Dev':             { id:'pers_dev',         name:'Personal Development' },
+    'Entrep Instructor':        { id:'entrep_inst',      name:'Entrepreneurship Instructor' },
+    'Math Instructor':          { id:'math_inst',        name:'Math Instructor' },
+    'Bank Charges':             { id:'bank_charge',      name:'Bank Charges' },
+    'Travelling':               { id:'travelling',       name:'Travelling' },
+    'Lunch':                    { id:'lunch',             name:'Lunch' }
+};
+
+function getQuarterMeta(q) { return QUARTER_META.find(m => m.q === q); }
+function getCashbookQuarterKey(fy, q) { return 'cestis_quarter_' + fy + '_Q' + q; }
+function getQuarterCalendarYear(fy, q) {
+    const startYear = parseInt(fy.split('/')[0]);
+    return q === 4 ? startYear + 1 : startYear;
+}
+function getQuarterPeriodLabel(fy, q) {
+    const meta = getQuarterMeta(q);
+    const yr = getQuarterCalendarYear(fy, q);
+    return meta.monthNames[0] + ' to ' + meta.monthNames[2] + ' ' + yr;
+}
+function getQuarterShortLabel(fy, q) {
+    const meta = getQuarterMeta(q);
+    const yr = getQuarterCalendarYear(fy, q);
+    return meta.shortLabel.replace('–','-').toUpperCase() + ' ' + yr;
+}
+
+// ═══════════════════════════════════════════════════════════
 //  DATA
 // ═══════════════════════════════════════════════════════════
-const budgetData = [
+// Default fallback budget data (Oct-Dec 2025 / Q3)
+const DEFAULT_BUDGET_DATA = [
     { id:'coordinator',     name:'Coordinator Salary',          allocated:345394.95, actual:320586.96 },
     { id:'asst_coord',      name:'Assistant Coordinator',       allocated:234000.00, actual:217192.95 },
     { id:'statutory',       name:'Statutory Deductions',        allocated:457490.66, actual:563813.18 },
@@ -811,6 +931,9 @@ const budgetData = [
     { id:'lunch',           name:'Lunch',                       allocated:0.00,      actual:600000.00 }
 ];
 
+// Dynamic budget data (can be updated from Cashbook sync)
+let budgetData = JSON.parse(JSON.stringify(DEFAULT_BUDGET_DATA));
+
 let virementRequests = [];
 let currentModalIdx = -1;
 
@@ -819,6 +942,9 @@ let currentModalIdx = -1;
 // ═══════════════════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', function(){
     loadAllData();
+    // Try to load budget data from Cashbook Dashboard (same origin localStorage)
+    loadBudgetFromCashbook();
+    updateVirementPeriod();
     renderBudgetOverview();
     renderRequests();
     renderPrintPreview();
@@ -869,6 +995,9 @@ function numberToWords(n){
 //  BUDGET OVERVIEW
 // ═══════════════════════════════════════════════════════════
 function renderBudgetOverview(){
+    // Update quarter display elements
+    updateQuarterDisplay();
+
     let totalAlloc=0, totalActual=0, totalSurplus=0, totalDeficit=0;
     budgetData.forEach(item=>{
         let v = item.allocated - item.actual;
@@ -880,9 +1009,12 @@ function renderBudgetOverview(){
     let netVariance = totalAlloc - totalActual;
     let totalVired = virementRequests.reduce((s,r)=>s+r.lines.reduce((a,l)=>a+l.amount,0),0);
 
+    // Dynamic quarter label for stats
+    let quarterLabel = getQuarterShortLabel(virementActiveFY, virementActiveQ) + ' Subvention';
+
     // Stats
     document.getElementById('statsRow').innerHTML = `
-        <div class="stat-card gold"><div class="label">Total Allocated</div><div class="value">${fmt(totalAlloc)}</div><div class="sub">OCT–DEC 2025 Subvention</div></div>
+        <div class="stat-card gold"><div class="label">Total Allocated</div><div class="value">${fmt(totalAlloc)}</div><div class="sub">${quarterLabel}</div></div>
         <div class="stat-card sky"><div class="label">Total Actual</div><div class="value">${fmt(totalActual)}</div><div class="sub">Expenditure to date</div></div>
         <div class="stat-card emerald"><div class="label">Total Surplus Lines</div><div class="value">${fmt(totalSurplus)}</div><div class="sub">Available for virement</div></div>
         <div class="stat-card rose"><div class="label">Total Deficit Lines</div><div class="value">${fmt(totalDeficit)}</div><div class="sub">Requiring additional funds</div></div>
@@ -1153,6 +1285,329 @@ function loadAllData(){
         let saved = localStorage.getItem('cesti_virements');
         if(saved) virementRequests = JSON.parse(saved);
     } catch(e){}
+}
+
+// ═══════════════════════════════════════════════════════════
+//  QUARTER SWITCHING & BUDGET SYNC FROM CASHBOOK
+// ═══════════════════════════════════════════════════════════
+
+// Switch the active quarter and reload budget data
+function switchVirementQuarter(q) {
+    if (q === virementActiveQ) return;
+    virementActiveQ = q;
+    // Update quarter tab buttons
+    document.querySelectorAll('.quarter-tab-btn').forEach((btn, i) => {
+        btn.classList.toggle('active', i + 1 === q);
+    });
+    // Try to load budget data from cashbook for this quarter
+    loadBudgetFromCashbook();
+    // Update the period input in the virement form
+    updateVirementPeriod();
+    // Re-render everything
+    renderBudgetOverview();
+    renderRequests();
+    renderPrintPreview();
+    // Refresh virement form dropdowns
+    document.getElementById('virementLines').innerHTML = '';
+    addVirementLine();
+    updateVirementTotal();
+}
+
+// Update the period field in the virement form based on active quarter
+function updateVirementPeriod() {
+    const periodLabel = getQuarterPeriodLabel(virementActiveFY, virementActiveQ);
+    const periodInput = document.getElementById('vPeriod');
+    if (periodInput) periodInput.value = periodLabel;
+}
+
+// Update quarter UI elements (header, FY label, source badge)
+function updateQuarterDisplay() {
+    const headerEl = document.getElementById('budgetTableHeader');
+    const fyLabel = document.getElementById('quarterFYLabel');
+    const badge = document.getElementById('budgetSourceBadge');
+    if (headerEl) {
+        headerEl.textContent = 'Budget Line Items — ' + getQuarterShortLabel(virementActiveFY, virementActiveQ);
+    }
+    if (fyLabel) {
+        fyLabel.textContent = 'FY ' + virementActiveFY;
+    }
+    if (badge) {
+        if (budgetDataSource === 'cashbook-local') {
+            badge.textContent = 'SYNCED FROM CASHBOOK';
+            badge.className = 'budget-source-badge synced';
+        } else if (budgetDataSource === 'cashbook-cloud') {
+            badge.textContent = 'SYNCED FROM CLOUD';
+            badge.className = 'budget-source-badge cloud';
+        } else {
+            badge.textContent = 'DEFAULT DATA';
+            badge.className = 'budget-source-badge default';
+        }
+    }
+}
+
+// Load budget data from the Cashbook Dashboard's localStorage (same origin)
+function loadBudgetFromCashbook() {
+    const quarterKey = getCashbookQuarterKey(virementActiveFY, virementActiveQ);
+    try {
+        // 1. Try to read the Cashbook's quarter data from shared localStorage
+        const quarterDataStr = localStorage.getItem(quarterKey);
+        // 2. Read the Cashbook's budget allocations
+        const budgetOverridesStr = localStorage.getItem('cestis_budget_overrides');
+        const budgetDeletedStr = localStorage.getItem('cestis_budget_deleted');
+
+        let cashbookBudget = null;
+        if (budgetOverridesStr) {
+            cashbookBudget = JSON.parse(budgetOverridesStr);
+            // Remove deleted keys
+            if (budgetDeletedStr) {
+                const deletedKeys = JSON.parse(budgetDeletedStr);
+                deletedKeys.forEach(k => delete cashbookBudget[k]);
+            }
+        }
+
+        if (quarterDataStr) {
+            const quarterData = JSON.parse(quarterDataStr);
+            const transactions = quarterData.transactions || [];
+
+            // Calculate actual spend per category from transactions
+            const catSpend = {};
+            transactions.forEach(t => {
+                if (t.category !== 'Cancelled' && t.category !== 'Subvention' && t.payment > 0) {
+                    catSpend[t.category] = (catSpend[t.category] || 0) + t.payment;
+                }
+            });
+
+            // Build budgetData from cashbook data
+            const newBudgetData = [];
+            const sourceBudget = cashbookBudget || getDefaultCashbookBudget();
+
+            Object.keys(sourceBudget).forEach(catName => {
+                const mapping = CASHBOOK_CATEGORY_MAP[catName];
+                if (mapping) {
+                    newBudgetData.push({
+                        id: mapping.id,
+                        name: mapping.name,
+                        allocated: sourceBudget[catName],
+                        actual: catSpend[catName] || 0
+                    });
+                }
+            });
+
+            // Also add any categories with actual spend that aren't in the budget
+            Object.keys(catSpend).forEach(catName => {
+                if (!sourceBudget.hasOwnProperty(catName)) {
+                    const mapping = CASHBOOK_CATEGORY_MAP[catName];
+                    if (mapping && !newBudgetData.find(b => b.id === mapping.id)) {
+                        newBudgetData.push({
+                            id: mapping.id,
+                            name: mapping.name,
+                            allocated: 0,
+                            actual: catSpend[catName]
+                        });
+                    }
+                }
+            });
+
+            if (newBudgetData.length > 0) {
+                budgetData = newBudgetData;
+                budgetDataSource = 'cashbook-local';
+                updateQuarterDisplay();
+                return true;
+            }
+        }
+
+        // If no quarter data but we have budget allocations, show budget with zero actuals
+        if (cashbookBudget) {
+            const newBudgetData = [];
+            Object.keys(cashbookBudget).forEach(catName => {
+                const mapping = CASHBOOK_CATEGORY_MAP[catName];
+                if (mapping) {
+                    newBudgetData.push({
+                        id: mapping.id,
+                        name: mapping.name,
+                        allocated: cashbookBudget[catName],
+                        actual: 0
+                    });
+                }
+            });
+            if (newBudgetData.length > 0) {
+                budgetData = newBudgetData;
+                budgetDataSource = 'cashbook-local';
+                updateQuarterDisplay();
+                return true;
+            }
+        }
+    } catch (e) {
+        console.error('Error loading budget from cashbook localStorage:', e);
+    }
+
+    // Fall back to default data for Q3, empty for other quarters
+    if (virementActiveQ === 3 && virementActiveFY === '2025/2026') {
+        budgetData = JSON.parse(JSON.stringify(DEFAULT_BUDGET_DATA));
+    } else {
+        // For non-Q3 quarters without cashbook data, show budget allocations with zero actuals
+        budgetData = DEFAULT_BUDGET_DATA.map(item => ({
+            id: item.id,
+            name: item.name,
+            allocated: item.allocated,
+            actual: 0
+        }));
+    }
+    budgetDataSource = 'default';
+    updateQuarterDisplay();
+    return false;
+}
+
+// Default cashbook budget (used when no overrides exist in localStorage)
+function getDefaultCashbookBudget() {
+    return {
+        'Coordinator Salary':345394.95, 'Asst. Coordinator':234000, 'Statutory Deductions':457490.66,
+        'Admin Expenses':150000, 'Training Material':150000, 'Assessor Fees':250000,
+        'Utilities':150000, 'Maintenance':150000,
+        'Welding L3 Instructor':308091.99, 'Electrical L3 Instructor':308091.99,
+        'Welding Instructor':287829.27, 'BT Instructor':287829.27, 'Electrical Instructor':287829.27,
+        'BNV Welding Instructor':287829.27, 'BNV Electrical Instructor':287829.27,
+        'Data Instructor':193800, 'Remedial English':193800, 'Personal Dev':0,
+        'Entrep Instructor':193800, 'Math Instructor':193800,
+        'Bank Charges':30000, 'Travelling':0, 'Lunch':0
+    };
+}
+
+// Sync budget data from Cashbook Dashboard's cloud backup (Google Drive)
+async function syncBudgetFromCashbook() {
+    if (!isCloudConnected || !googleAccessToken) {
+        // Try loading from localStorage first (same origin)
+        const loaded = loadBudgetFromCashbook();
+        if (loaded) {
+            renderBudgetOverview();
+            renderRequests();
+            renderPrintPreview();
+            document.getElementById('virementLines').innerHTML = '';
+            addVirementLine();
+            alert('Budget data synced from Cashbook Dashboard (local storage).\n\nQuarter: ' + getQuarterPeriodLabel(virementActiveFY, virementActiveQ));
+            return;
+        }
+        alert('Please connect to Google Drive first to sync budget data from the cloud.\n\nAlternatively, open the Cashbook Dashboard in another tab to populate local storage.');
+        return;
+    }
+
+    const syncBtn = document.getElementById('syncBudgetBtn');
+    if (syncBtn) { syncBtn.disabled = true; syncBtn.innerHTML = '<span class="spinning">🔄</span> Syncing...'; }
+
+    try {
+        // Search for the Cashbook backup file in the shared Google Drive folder
+        const cashbookFileName = 'CESTIS_CASHBOOK_DASHBOARD_BACKUP.json';
+        const query = "name='" + cashbookFileName + "' and '" + GOOGLE_DRIVE_CONFIG.FOLDER_ID + "' in parents and trashed=false";
+        const searchResponse = await fetch(
+            'https://www.googleapis.com/drive/v3/files?q=' + encodeURIComponent(query) + '&fields=files(id,name,modifiedTime)',
+            { headers: { 'Authorization': 'Bearer ' + googleAccessToken } }
+        );
+
+        if (!searchResponse.ok) throw new Error('Failed to search for Cashbook backup');
+
+        const searchData = await searchResponse.json();
+        if (!searchData.files || searchData.files.length === 0) {
+            throw new Error('No Cashbook Dashboard backup found in Google Drive. Please save from the Cashbook Dashboard first.');
+        }
+
+        const cashbookFileId = searchData.files[0].id;
+
+        // Download the Cashbook backup
+        const downloadResponse = await fetch(
+            'https://www.googleapis.com/drive/v3/files/' + cashbookFileId + '?alt=media',
+            { headers: { 'Authorization': 'Bearer ' + googleAccessToken } }
+        );
+
+        if (!downloadResponse.ok) throw new Error('Failed to download Cashbook backup');
+
+        const cashbookBackup = await downloadResponse.json();
+
+        if (!cashbookBackup.data) throw new Error('Invalid Cashbook backup format');
+
+        // Extract budget allocations and transactions
+        const cloudBudget = cashbookBackup.data.budget || getDefaultCashbookBudget();
+        const cloudTransactions = cashbookBackup.data.transactions || [];
+        const cloudFY = cashbookBackup.data.activeFY || virementActiveFY;
+        const cloudQ = cashbookBackup.data.activeQ || virementActiveQ;
+
+        // Calculate actual spend from cloud transactions
+        const catSpend = {};
+        cloudTransactions.forEach(t => {
+            if (t.category !== 'Cancelled' && t.category !== 'Subvention' && t.payment > 0) {
+                catSpend[t.category] = (catSpend[t.category] || 0) + t.payment;
+            }
+        });
+
+        // Build budget data
+        const newBudgetData = [];
+        Object.keys(cloudBudget).forEach(catName => {
+            const mapping = CASHBOOK_CATEGORY_MAP[catName];
+            if (mapping) {
+                newBudgetData.push({
+                    id: mapping.id,
+                    name: mapping.name,
+                    allocated: cloudBudget[catName],
+                    actual: catSpend[catName] || 0
+                });
+            }
+        });
+
+        // Add unbudgeted categories with actual spend
+        Object.keys(catSpend).forEach(catName => {
+            if (!cloudBudget.hasOwnProperty(catName)) {
+                const mapping = CASHBOOK_CATEGORY_MAP[catName];
+                if (mapping && !newBudgetData.find(b => b.id === mapping.id)) {
+                    newBudgetData.push({
+                        id: mapping.id,
+                        name: mapping.name,
+                        allocated: 0,
+                        actual: catSpend[catName]
+                    });
+                }
+            }
+        });
+
+        if (newBudgetData.length > 0) {
+            budgetData = newBudgetData;
+            budgetDataSource = 'cashbook-cloud';
+
+            // Switch to the quarter from the cloud backup
+            virementActiveFY = cloudFY;
+            virementActiveQ = cloudQ;
+            document.querySelectorAll('.quarter-tab-btn').forEach((btn, i) => {
+                btn.classList.toggle('active', i + 1 === cloudQ);
+            });
+
+            updateQuarterDisplay();
+            updateVirementPeriod();
+            renderBudgetOverview();
+            renderRequests();
+            renderPrintPreview();
+            document.getElementById('virementLines').innerHTML = '';
+            addVirementLine();
+
+            const backupTime = new Date(cashbookBackup.timestamp).toLocaleString();
+            const savedBy = cashbookBackup.savedBy || 'Unknown';
+            alert('Budget data synced from Cashbook Dashboard cloud backup!\n\n' +
+                'Quarter: ' + getQuarterPeriodLabel(cloudFY, cloudQ) + '\n' +
+                'Backup saved by: ' + savedBy + '\n' +
+                'Backup date: ' + backupTime + '\n\n' +
+                'Budget lines updated: ' + newBudgetData.length);
+        } else {
+            throw new Error('No budget line data found in the Cashbook backup.');
+        }
+
+    } catch (error) {
+        console.error('Error syncing budget from cashbook:', error);
+        if (error.message.includes('invalid_token') || error.message.includes('Invalid Credentials')) {
+            alert('Your session has expired. Please reconnect to Google Drive.');
+            disconnectFromGoogleDrive();
+        } else {
+            alert('Failed to sync budget: ' + error.message);
+        }
+    } finally {
+        if (syncBtn) { syncBtn.disabled = false; syncBtn.innerHTML = '<span>🔄</span> Sync Budget from Cashbook'; }
+    }
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -1791,6 +2246,9 @@ async function syncFromCloud() {
             saveAllData();
         }
 
+        // Also try to sync budget data from Cashbook
+        loadBudgetFromCashbook();
+
         lastSyncTime = new Date();
         localStorage.setItem('schoolDashboardLastSyncTime', lastSyncTime.toISOString());
         updateLastSyncDisplay();
@@ -1878,6 +2336,9 @@ async function mergeFromCloud() {
             }
         }
 
+        // Also try to sync budget data from Cashbook
+        loadBudgetFromCashbook();
+
         lastSyncTime = new Date();
         localStorage.setItem('schoolDashboardLastSyncTime', lastSyncTime.toISOString());
         updateLastSyncDisplay();
@@ -1919,6 +2380,13 @@ async function mergeFromCloud() {
             alert(`❌ Failed to merge from cloud: ${error.message}`);
         }
     }
+}
+
+// ─── SYNC BUDGET FROM CASHBOOK (Cloud Menu) ───
+function syncBudgetFromCloudMenu() {
+    const menu = document.getElementById('cloudDropdownMenu');
+    menu.classList.remove('show');
+    syncBudgetFromCashbook();
 }
 
 // ─── BROWSE ALL BACKUPS ───
