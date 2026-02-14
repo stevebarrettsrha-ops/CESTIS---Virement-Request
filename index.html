@@ -1593,6 +1593,10 @@ async function findExistingBackupFile() {
                 cloudFileId = data.files[0].id;
                 localStorage.setItem('schoolDashboardCloudFileId', cloudFileId);
                 console.log('Found existing backup file:', cloudFileId);
+            } else {
+                cloudFileId = null;
+                localStorage.removeItem('schoolDashboardCloudFileId');
+                console.log('No backup file found with name:', GOOGLE_DRIVE_CONFIG.BACKUP_FILE_NAME);
             }
         }
     } catch (error) {
