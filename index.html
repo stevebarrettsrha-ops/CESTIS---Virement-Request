@@ -1676,15 +1676,22 @@ async function saveToCloud() {
         let response;
 
         if (cloudFileId) {
+            const updateMetadata = {
+                name: GOOGLE_DRIVE_CONFIG.BACKUP_FILE_NAME
+            };
+
+            const updateFormData = new FormData();
+            updateFormData.append('metadata', new Blob([JSON.stringify(updateMetadata)], { type: 'application/json' }));
+            updateFormData.append('file', blob);
+
             response = await fetch(
-                `https://www.googleapis.com/upload/drive/v3/files/${cloudFileId}?uploadType=media`,
+                `https://www.googleapis.com/upload/drive/v3/files/${cloudFileId}?uploadType=multipart`,
                 {
                     method: 'PATCH',
                     headers: {
-                        'Authorization': `Bearer ${googleAccessToken}`,
-                        'Content-Type': 'application/json'
+                        'Authorization': `Bearer ${googleAccessToken}`
                     },
-                    body: blob
+                    body: updateFormData
                 }
             );
         } else {
