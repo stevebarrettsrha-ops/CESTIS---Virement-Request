@@ -402,6 +402,28 @@
             font-size: 0.78rem; color: var(--gold); font-weight: 700;
             letter-spacing: 1px; font-family: 'DM Sans', sans-serif;
         }
+        .fy-selector {
+            display: flex; align-items: center; gap: 0;
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 8px; overflow: hidden;
+        }
+        .fy-select {
+            background: transparent; border: none; color: var(--gold);
+            font-family: 'DM Sans', sans-serif; font-size: 0.78rem;
+            font-weight: 700; letter-spacing: 0.5px; padding: 0.45rem 0.3rem;
+            cursor: pointer; text-align: center; appearance: none;
+            -webkit-appearance: none; -moz-appearance: none;
+            outline: none; min-width: 7.5rem;
+        }
+        .fy-select option {
+            background: var(--navy); color: var(--text);
+        }
+        .fy-nav-btn {
+            background: transparent; border: none; color: var(--text-dim);
+            font-size: 0.65rem; padding: 0.45rem 0.5rem; cursor: pointer;
+            transition: all 0.2s; display: flex; align-items: center;
+        }
+        .fy-nav-btn:hover { color: var(--gold); background: rgba(255,255,255,0.04); }
         .quarter-sync-btn {
             margin-left: auto; padding: 0.45rem 0.9rem;
             background: linear-gradient(135deg, #10b981, #059669);
@@ -735,10 +757,14 @@
         <div class="quarter-tabs">
             <button class="quarter-tab-btn" onclick="switchVirementQuarter(1)">Q1 Apr-Jun</button>
             <button class="quarter-tab-btn" onclick="switchVirementQuarter(2)">Q2 Jul-Sep</button>
-            <button class="quarter-tab-btn active" onclick="switchVirementQuarter(3)">Q3 Oct-Dec</button>
+            <button class="quarter-tab-btn" onclick="switchVirementQuarter(3)">Q3 Oct-Dec</button>
             <button class="quarter-tab-btn" onclick="switchVirementQuarter(4)">Q4 Jan-Mar</button>
         </div>
-        <span class="quarter-fy" id="quarterFYLabel">FY 2025/2026</span>
+        <div class="fy-selector">
+            <button class="fy-nav-btn" onclick="shiftFiscalYear(-1)" title="Previous Fiscal Year">◀</button>
+            <select id="fySelect" class="fy-select" onchange="switchFiscalYear(this.value)"></select>
+            <button class="fy-nav-btn" onclick="shiftFiscalYear(1)" title="Next Fiscal Year">▶</button>
+        </div>
         <span class="budget-source-badge default" id="budgetSourceBadge">DEFAULT DATA</span>
         <button class="quarter-sync-btn" onclick="syncBudgetFromCashbook()" id="syncBudgetBtn">
             <span>🔄</span> Sync Budget from Cashbook
@@ -866,8 +892,15 @@ const QUARTER_META = [
 ];
 
 // Active quarter state for the Virement Dashboard
-let virementActiveFY = '2025/2026';
-let virementActiveQ = 3;
+// Auto-detect current fiscal year: FY starts in April
+const _now = new Date();
+const _curMonth = _now.getMonth() + 1;
+const _fyStart = _curMonth >= 4 ? _now.getFullYear() : _now.getFullYear() - 1;
+let virementActiveFY = _fyStart + '/' + (_fyStart + 1);
+// Auto-detect current quarter based on month
+let virementActiveQ = _curMonth >= 4 && _curMonth <= 6 ? 1
+    : _curMonth >= 7 && _curMonth <= 9 ? 2
+    : _curMonth >= 10 && _curMonth <= 12 ? 3 : 4;
 let budgetDataSource = 'no-data'; // 'no-data', 'cashbook-cloud'
 
 // Per-quarter cloud cache: stores budget data synced from Google Drive
@@ -939,6 +972,12 @@ let currentModalIdx = -1;
 document.addEventListener('DOMContentLoaded', function(){
     loadAllData();
     loadCloudCache();
+    // Populate fiscal year dropdown
+    populateFYSelector();
+    // Set initial quarter tab as active based on auto-detected quarter
+    document.querySelectorAll('.quarter-tab-btn').forEach((btn, i) => {
+        btn.classList.toggle('active', i + 1 === virementActiveQ);
+    });
     // Load budget data from cloud cache (Google Drive only)
     loadBudgetForQuarter();
     updateVirementPeriod();
@@ -1334,16 +1373,20 @@ function updateVirementPeriod() {
     if (periodInput) periodInput.value = periodLabel;
 }
 
-// Update quarter UI elements (header, FY label, source badge)
+// Update quarter UI elements (header, FY selector, source badge)
 function updateQuarterDisplay() {
     const headerEl = document.getElementById('budgetTableHeader');
-    const fyLabel = document.getElementById('quarterFYLabel');
     const badge = document.getElementById('budgetSourceBadge');
     if (headerEl) {
         headerEl.textContent = 'Budget Line Items — ' + getQuarterShortLabel(virementActiveFY, virementActiveQ);
     }
-    if (fyLabel) {
-        fyLabel.textContent = 'FY ' + virementActiveFY;
+    // Keep FY dropdown in sync
+    const fySelect = document.getElementById('fySelect');
+    if (fySelect) {
+        if (!Array.from(fySelect.options).some(o => o.value === virementActiveFY)) {
+            populateFYSelector();
+        }
+        fySelect.value = virementActiveFY;
     }
     if (badge) {
         if (budgetDataSource === 'cashbook-local') {
@@ -1365,6 +1408,78 @@ function updateQuarterDisplay() {
     if (emptyBanner) {
         emptyBanner.style.display = budgetDataSource === 'no-data' ? 'flex' : 'none';
     }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  FISCAL YEAR SELECTOR
+// ═══════════════════════════════════════════════════════════
+
+// Generate list of available fiscal years (range around current)
+function getFiscalYearOptions() {
+    const now = new Date();
+    const currentMonth = now.getMonth() + 1; // 1-12
+    const currentYear = now.getFullYear();
+    // FY starts in April: if Jan-Mar, we're in the FY that started last year
+    const currentFYStart = currentMonth >= 4 ? currentYear : currentYear - 1;
+    const years = [];
+    // Show 3 years back and 1 year forward from current FY
+    for (let y = currentFYStart - 3; y <= currentFYStart + 1; y++) {
+        years.push(y + '/' + (y + 1));
+    }
+    return years;
+}
+
+// Populate the FY dropdown and select the active FY
+function populateFYSelector() {
+    const select = document.getElementById('fySelect');
+    if (!select) return;
+    const options = getFiscalYearOptions();
+    // Also include the active FY if not already in range
+    if (!options.includes(virementActiveFY)) {
+        options.push(virementActiveFY);
+        options.sort();
+    }
+    select.innerHTML = options.map(fy =>
+        '<option value="' + fy + '"' + (fy === virementActiveFY ? ' selected' : '') + '>FY ' + fy + '</option>'
+    ).join('');
+}
+
+// Switch fiscal year and reload data
+function switchFiscalYear(fy) {
+    if (fy === virementActiveFY) return;
+    virementActiveFY = fy;
+    // Reload budget data for the new FY + current quarter
+    loadBudgetForQuarter();
+    updateVirementPeriod();
+    renderBudgetOverview();
+    renderRequests();
+    renderPrintPreview();
+    // Refresh virement form
+    document.getElementById('virementLines').innerHTML = '';
+    addVirementLine();
+    updateVirementTotal();
+    // Update FY dropdown selection
+    const select = document.getElementById('fySelect');
+    if (select) select.value = fy;
+}
+
+// Navigate FY forward/backward via arrow buttons
+function shiftFiscalYear(direction) {
+    const startYear = parseInt(virementActiveFY.split('/')[0]) + direction;
+    const newFY = startYear + '/' + (startYear + 1);
+    // Update dropdown options if needed
+    const select = document.getElementById('fySelect');
+    if (select && !Array.from(select.options).some(o => o.value === newFY)) {
+        const opt = document.createElement('option');
+        opt.value = newFY;
+        opt.textContent = 'FY ' + newFY;
+        if (direction > 0) {
+            select.appendChild(opt);
+        } else {
+            select.insertBefore(opt, select.firstChild);
+        }
+    }
+    switchFiscalYear(newFY);
 }
 
 // Load cloud cache from localStorage on startup
@@ -1521,6 +1636,8 @@ async function syncBudgetFromCashbook() {
         document.querySelectorAll('.quarter-tab-btn').forEach((btn, i) => {
             btn.classList.toggle('active', i + 1 === cloudQ);
         });
+        // Update FY dropdown to reflect the synced fiscal year
+        populateFYSelector();
 
         // Load from the cloud cache
         loadBudgetForQuarter();
