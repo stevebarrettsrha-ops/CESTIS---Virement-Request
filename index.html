@@ -1581,22 +1581,36 @@ async function syncBudgetFromCashbook() {
     if (syncBtn) { syncBtn.disabled = true; syncBtn.innerHTML = '<span class="spinning">🔄</span> Syncing...'; }
 
     try {
-        // Search for the Cashbook backup file in the shared Google Drive folder
+        // Search for the Cashbook backup file in the Cashbook folder first, then fall back to the Virement folder
         const cashbookFileName = 'CESTIS_CASHBOOK_DASHBOARD_BACKUP.json';
-        const query = "name='" + cashbookFileName + "' and '" + GOOGLE_DRIVE_CONFIG.FOLDER_ID + "' in parents and trashed=false";
-        const searchResponse = await fetch(
-            'https://www.googleapis.com/drive/v3/files?q=' + encodeURIComponent(query) + '&fields=files(id,name,modifiedTime)',
-            { headers: { 'Authorization': 'Bearer ' + googleAccessToken } }
-        );
+        const foldersToSearch = [
+            { id: GOOGLE_DRIVE_CONFIG.CASHBOOK_FOLDER_ID, label: 'Cashbook Folder' },
+            { id: GOOGLE_DRIVE_CONFIG.FOLDER_ID, label: 'Virement Folder' }
+        ];
 
-        if (!searchResponse.ok) throw new Error('Failed to search for Cashbook backup');
+        let cashbookFileId = null;
+        let sourceFolder = '';
 
-        const searchData = await searchResponse.json();
-        if (!searchData.files || searchData.files.length === 0) {
-            throw new Error('No Cashbook Dashboard backup found in Google Drive.\nPlease save from the Cashbook Dashboard first.');
+        for (const folder of foldersToSearch) {
+            const query = "name='" + cashbookFileName + "' and '" + folder.id + "' in parents and trashed=false";
+            const searchResponse = await fetch(
+                'https://www.googleapis.com/drive/v3/files?q=' + encodeURIComponent(query) + '&fields=files(id,name,modifiedTime)',
+                { headers: { 'Authorization': 'Bearer ' + googleAccessToken } }
+            );
+
+            if (!searchResponse.ok) continue;
+
+            const searchData = await searchResponse.json();
+            if (searchData.files && searchData.files.length > 0) {
+                cashbookFileId = searchData.files[0].id;
+                sourceFolder = folder.label;
+                break;
+            }
         }
 
-        const cashbookFileId = searchData.files[0].id;
+        if (!cashbookFileId) {
+            throw new Error('No Cashbook Dashboard backup found in Google Drive.\nPlease save from the Cashbook Dashboard first.');
+        }
 
         // Download the Cashbook backup
         const downloadResponse = await fetch(
@@ -1651,6 +1665,7 @@ async function syncBudgetFromCashbook() {
         const backupTime = new Date(cashbookBackup.timestamp).toLocaleString();
         const savedBy = cashbookBackup.savedBy || 'Unknown';
         alert('Budget data synced from Cashbook cloud backup!\n\n' +
+            'Source: ' + sourceFolder + '\n' +
             'Quarter: ' + getQuarterPeriodLabel(cloudFY, cloudQ) + '\n' +
             'Backup saved by: ' + savedBy + '\n' +
             'Backup date: ' + backupTime + '\n\n' +
@@ -1774,6 +1789,7 @@ function preloadFromDocData(){
 const GOOGLE_DRIVE_CONFIG = {
     CLIENT_ID: '302497466088-0b619cqa9qno2c606k4rqp742lebc5o8.apps.googleusercontent.com',
     FOLDER_ID: '1G6ipD_pGVItBvlPx0LGbD6Prj6AXW303',
+    CASHBOOK_FOLDER_ID: '1aL_QZiJ5rmxQUBhj261PzdbYXrI5doOO',
     BACKUP_FILE_NAME: 'Cashbook_Virement_Backup.json',
     SCOPES: 'https://www.googleapis.com/auth/drive'
 };
@@ -2492,39 +2508,64 @@ async function browseBackupFiles() {
     setCloudSyncing(true);
 
     try {
-        const query = `'${GOOGLE_DRIVE_CONFIG.FOLDER_ID}' in parents and trashed=false and mimeType='application/json'`;
-        const response = await fetch(
-            `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name,modifiedTime,size)&orderBy=modifiedTime desc`,
-            { headers: { 'Authorization': `Bearer ${googleAccessToken}` } }
-        );
+        // Fetch files from both the Virement folder and the Cashbook folder
+        const folders = [
+            { id: GOOGLE_DRIVE_CONFIG.FOLDER_ID, label: 'Virement Folder' },
+            { id: GOOGLE_DRIVE_CONFIG.CASHBOOK_FOLDER_ID, label: 'Cashbook Folder' }
+        ];
+
+        let allFiles = [];
+        for (const folder of folders) {
+            try {
+                const query = `'${folder.id}' in parents and trashed=false and mimeType='application/json'`;
+                const response = await fetch(
+                    `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name,modifiedTime,size)&orderBy=modifiedTime desc`,
+                    { headers: { 'Authorization': `Bearer ${googleAccessToken}` } }
+                );
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.files) {
+                        data.files.forEach(file => {
+                            file._sourceFolder = folder.label;
+                            allFiles.push(file);
+                        });
+                    }
+                }
+            } catch (e) {
+                console.warn('Could not list files from ' + folder.label + ':', e);
+            }
+        }
+
+        // Sort all files by modification time descending
+        allFiles.sort((a, b) => new Date(b.modifiedTime) - new Date(a.modifiedTime));
 
         setCloudSyncing(false);
 
-        if (!response.ok) throw new Error('Failed to list files');
-
-        const data = await response.json();
-
-        const driveLink = `https://drive.google.com/drive/folders/${GOOGLE_DRIVE_CONFIG.FOLDER_ID}`;
+        const virementDriveLink = `https://drive.google.com/drive/folders/${GOOGLE_DRIVE_CONFIG.FOLDER_ID}`;
+        const cashbookDriveLink = `https://drive.google.com/drive/folders/${GOOGLE_DRIVE_CONFIG.CASHBOOK_FOLDER_ID}`;
 
         let fileListHTML = '';
-        if (!data.files || data.files.length === 0) {
+        if (allFiles.length === 0) {
             fileListHTML = `
                 <div class="folder-browser-empty">
                     <span>📂</span>
-                    <p>No backup files found in the Google Drive folder.</p>
+                    <p>No backup files found in either Google Drive folder.</p>
                 </div>`;
         } else {
-            data.files.forEach(file => {
+            allFiles.forEach(file => {
                 const modified = new Date(file.modifiedTime);
                 const dateStr = modified.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
                 const timeStr = modified.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
                 const sizeStr = file.size ? formatFileSize(parseInt(file.size)) : '—';
+                const folderBadge = file._sourceFolder === 'Cashbook Folder'
+                    ? '<span style="background:#e8f5e9;color:#2e7d32;padding:1px 6px;border-radius:4px;font-size:0.65rem;margin-left:0.35rem;">Cashbook</span>'
+                    : '<span style="background:#e3f2fd;color:#1565c0;padding:1px 6px;border-radius:4px;font-size:0.65rem;margin-left:0.35rem;">Virement</span>';
                 fileListHTML += `
                     <div class="folder-file-item" id="folder-file-${file.id}">
                         <div class="folder-file-info">
                             <div class="folder-file-icon">📄</div>
                             <div class="folder-file-details">
-                                <div class="folder-file-name" title="${file.name}">${file.name}</div>
+                                <div class="folder-file-name" title="${file.name}">${file.name}${folderBadge}</div>
                                 <div class="folder-file-meta">
                                     <span>📅 ${dateStr} at ${timeStr}</span>
                                     <span>📦 ${sizeStr}</span>
@@ -2543,20 +2584,23 @@ async function browseBackupFiles() {
             });
         }
 
-        const fileCount = data.files ? data.files.length : 0;
+        const fileCount = allFiles.length;
         const modalHTML = `
         <div id="folderBrowserOverlay" class="folder-browser-overlay" onclick="if(event.target===this)closeFolderBrowser()">
             <div class="folder-browser">
                 <div class="folder-browser-header">
-                    <h2>📁 Cloud Folder — All Backups${fileCount > 0 ? ' <span style="font-size:0.75rem;font-weight:500;color:var(--slate);margin-left:0.25rem;">(' + fileCount + ')</span>' : ''}</h2>
+                    <h2>📁 Cloud Folders — All Backups${fileCount > 0 ? ' <span style="font-size:0.75rem;font-weight:500;color:var(--slate);margin-left:0.25rem;">(' + fileCount + ')</span>' : ''}</h2>
                     <button class="folder-browser-close" onclick="closeFolderBrowser()">×</button>
                 </div>
                 <div class="folder-browser-body">
                     ${fileListHTML}
                 </div>
                 <div class="folder-browser-footer">
-                    <a href="${driveLink}" target="_blank" rel="noopener noreferrer">
-                        🔗 Open folder in Google Drive
+                    <a href="${virementDriveLink}" target="_blank" rel="noopener noreferrer" style="margin-right:1rem;">
+                        🔗 Virement Folder
+                    </a>
+                    <a href="${cashbookDriveLink}" target="_blank" rel="noopener noreferrer">
+                        🔗 Cashbook Folder
                     </a>
                 </div>
             </div>
