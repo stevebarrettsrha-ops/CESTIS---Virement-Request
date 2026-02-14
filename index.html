@@ -419,6 +419,15 @@
         .budget-source-badge.synced { background: rgba(16,185,129,0.15); color: var(--emerald); }
         .budget-source-badge.default { background: rgba(148,163,184,0.1); color: var(--slate); }
         .budget-source-badge.cloud { background: rgba(56,189,248,0.15); color: var(--sky); }
+        .budget-source-badge.no-data { background: rgba(244,63,94,0.12); color: var(--rose); }
+        .quarter-empty-banner {
+            display: flex; align-items: center; gap: 0.75rem;
+            padding: 1rem 1.25rem; margin-bottom: 1.25rem;
+            background: rgba(244,63,94,0.06); border: 1px solid rgba(244,63,94,0.15);
+            border-radius: 8px; color: var(--text-dim); font-size: 0.82rem;
+        }
+        .quarter-empty-banner .banner-icon { font-size: 1.3rem; }
+        .quarter-empty-banner strong { color: var(--rose); }
 
         /* scrollbar */
         ::-webkit-scrollbar { width:6px; }
@@ -735,6 +744,10 @@
             <span>🔄</span> Sync Budget from Cashbook
         </button>
     </div>
+    <div id="quarterEmptyBanner" class="quarter-empty-banner" style="display:none;">
+        <span class="banner-icon">⚠️</span>
+        <span><strong>No Cashbook data available for this quarter.</strong> Open the Cashbook Dashboard and enter transactions, or use <em>Sync Budget from Cashbook</em> to pull cloud data.</span>
+    </div>
     <div class="stat-row" id="statsRow"></div>
     <div class="chart-grid" id="chartArea"></div>
     <div class="table-wrap">
@@ -904,35 +917,11 @@ function getQuarterShortLabel(fy, q) {
 // ═══════════════════════════════════════════════════════════
 //  DATA
 // ═══════════════════════════════════════════════════════════
-// Default fallback budget data (Oct-Dec 2025 / Q3)
-const DEFAULT_BUDGET_DATA = [
-    { id:'coordinator',     name:'Coordinator Salary',          allocated:345394.95, actual:320586.96 },
-    { id:'asst_coord',      name:'Assistant Coordinator',       allocated:234000.00, actual:217192.95 },
-    { id:'statutory',       name:'Statutory Deductions',        allocated:457490.66, actual:563813.18 },
-    { id:'admin',           name:'Admin Expenses',              allocated:150000.00, actual:370707.80 },
-    { id:'training_mat',    name:'Training Material',           allocated:150000.00, actual:0.00 },
-    { id:'assessor',        name:'Assessor Fees',               allocated:250000.00, actual:0.00 },
-    { id:'utilities',       name:'Utilities / McChem',          allocated:150000.00, actual:37774.35 },
-    { id:'maintenance',     name:'Maintenance',                 allocated:150000.00, actual:711000.00 },
-    { id:'welding_l3',      name:'Welding Level 3',             allocated:308091.99, actual:0.00 },
-    { id:'electrical_l3',   name:'Electrical Installation L3',  allocated:308091.99, actual:0.00 },
-    { id:'welding_inst',    name:'Welding Instructor Regular',  allocated:287829.27, actual:267155.94 },
-    { id:'bt_inst',         name:'BT Instructor',               allocated:287829.27, actual:267155.94 },
-    { id:'electrical_inst', name:'Electrical Instructor',       allocated:287829.27, actual:267155.94 },
-    { id:'bnv_welding',     name:'BNV Welding',                 allocated:287829.27, actual:267155.94 },
-    { id:'bnv_electrical',  name:'BNV Electrical',              allocated:287829.27, actual:267155.94 },
-    { id:'data_inst',       name:'Data Instructor',             allocated:193800.00, actual:191872.34 },
-    { id:'remedial_eng',    name:'Remedial English',            allocated:193800.00, actual:34477.06 },
-    { id:'pers_dev',        name:'Personal Development',        allocated:0.00,      actual:0.00 },
-    { id:'entrep_inst',     name:'Entrepreneurship Instructor', allocated:193800.00, actual:191872.34 },
-    { id:'math_inst',       name:'Math Instructor',             allocated:193800.00, actual:0.00 },
-    { id:'bank_charge',     name:'Bank Charges',                allocated:0.00,      actual:3091.47 },
-    { id:'travelling',      name:'Travelling',                  allocated:30000.00,  actual:57481.20 },
-    { id:'lunch',           name:'Lunch',                       allocated:0.00,      actual:600000.00 }
-];
-
-// Dynamic budget data (can be updated from Cashbook sync)
-let budgetData = JSON.parse(JSON.stringify(DEFAULT_BUDGET_DATA));
+// Dynamic budget data — populated by loadBudgetFromCashbook() on init
+// Starts empty; will be filled from Cashbook localStorage or show all-zeros
+let budgetData = Object.values(CASHBOOK_CATEGORY_MAP).map(m => ({
+    id: m.id, name: m.name, allocated: 0, actual: 0
+}));
 
 let virementRequests = [];
 let currentModalIdx = -1;
@@ -1011,11 +1000,12 @@ function renderBudgetOverview(){
 
     // Dynamic quarter label for stats
     let quarterLabel = getQuarterShortLabel(virementActiveFY, virementActiveQ) + ' Subvention';
+    let noDataNote = budgetDataSource === 'no-data' ? ' (no data)' : '';
 
     // Stats
     document.getElementById('statsRow').innerHTML = `
-        <div class="stat-card gold"><div class="label">Total Allocated</div><div class="value">${fmt(totalAlloc)}</div><div class="sub">${quarterLabel}</div></div>
-        <div class="stat-card sky"><div class="label">Total Actual</div><div class="value">${fmt(totalActual)}</div><div class="sub">Expenditure to date</div></div>
+        <div class="stat-card gold"><div class="label">Total Allocated</div><div class="value">${fmt(totalAlloc)}</div><div class="sub">${quarterLabel}${noDataNote}</div></div>
+        <div class="stat-card sky"><div class="label">Total Actual</div><div class="value">${fmt(totalActual)}</div><div class="sub">Expenditure to date${noDataNote}</div></div>
         <div class="stat-card emerald"><div class="label">Total Surplus Lines</div><div class="value">${fmt(totalSurplus)}</div><div class="sub">Available for virement</div></div>
         <div class="stat-card rose"><div class="label">Total Deficit Lines</div><div class="value">${fmt(totalDeficit)}</div><div class="sub">Requiring additional funds</div></div>
         <div class="stat-card gold"><div class="label">Net Variance</div><div class="value">${fmtSigned(netVariance)}</div><div class="sub">${netVariance>=0?'Under budget':'Over budget'}</div></div>
@@ -1338,10 +1328,18 @@ function updateQuarterDisplay() {
         } else if (budgetDataSource === 'cashbook-cloud') {
             badge.textContent = 'SYNCED FROM CLOUD';
             badge.className = 'budget-source-badge cloud';
+        } else if (budgetDataSource === 'no-data') {
+            badge.textContent = 'NO DATA';
+            badge.className = 'budget-source-badge no-data';
         } else {
             badge.textContent = 'DEFAULT DATA';
             badge.className = 'budget-source-badge default';
         }
+    }
+    // Show/hide the empty state banner
+    const emptyBanner = document.getElementById('quarterEmptyBanner');
+    if (emptyBanner) {
+        emptyBanner.style.display = budgetDataSource === 'no-data' ? 'flex' : 'none';
     }
 }
 
@@ -1416,44 +1414,19 @@ function loadBudgetFromCashbook() {
             }
         }
 
-        // If no quarter data but we have budget allocations, show budget with zero actuals
-        if (cashbookBudget) {
-            const newBudgetData = [];
-            Object.keys(cashbookBudget).forEach(catName => {
-                const mapping = CASHBOOK_CATEGORY_MAP[catName];
-                if (mapping) {
-                    newBudgetData.push({
-                        id: mapping.id,
-                        name: mapping.name,
-                        allocated: cashbookBudget[catName],
-                        actual: 0
-                    });
-                }
-            });
-            if (newBudgetData.length > 0) {
-                budgetData = newBudgetData;
-                budgetDataSource = 'cashbook-local';
-                updateQuarterDisplay();
-                return true;
-            }
-        }
+        // No quarter data exists — fall through to empty state
     } catch (e) {
         console.error('Error loading budget from cashbook localStorage:', e);
     }
 
-    // Fall back to default data for Q3, empty for other quarters
-    if (virementActiveQ === 3 && virementActiveFY === '2025/2026') {
-        budgetData = JSON.parse(JSON.stringify(DEFAULT_BUDGET_DATA));
-    } else {
-        // For non-Q3 quarters without cashbook data, show budget allocations with zero actuals
-        budgetData = DEFAULT_BUDGET_DATA.map(item => ({
-            id: item.id,
-            name: item.name,
-            allocated: item.allocated,
-            actual: 0
-        }));
-    }
-    budgetDataSource = 'default';
+    // No Cashbook data for this quarter — show all zeros
+    budgetData = Object.values(CASHBOOK_CATEGORY_MAP).map(mapping => ({
+        id: mapping.id,
+        name: mapping.name,
+        allocated: 0,
+        actual: 0
+    }));
+    budgetDataSource = 'no-data';
     updateQuarterDisplay();
     return false;
 }
@@ -1474,6 +1447,8 @@ function getDefaultCashbookBudget() {
 }
 
 // Sync budget data from Cashbook Dashboard's cloud backup (Google Drive)
+// Downloads the Cashbook backup, stores quarter data + budget in localStorage,
+// then reloads using the standard loadBudgetFromCashbook() path.
 async function syncBudgetFromCashbook() {
     if (!isCloudConnected || !googleAccessToken) {
         // Try loading from localStorage first (same origin)
@@ -1507,7 +1482,7 @@ async function syncBudgetFromCashbook() {
 
         const searchData = await searchResponse.json();
         if (!searchData.files || searchData.files.length === 0) {
-            throw new Error('No Cashbook Dashboard backup found in Google Drive. Please save from the Cashbook Dashboard first.');
+            throw new Error('No Cashbook Dashboard backup found in Google Drive.\nPlease save from the Cashbook Dashboard first.');
         }
 
         const cashbookFileId = searchData.files[0].id;
@@ -1524,78 +1499,55 @@ async function syncBudgetFromCashbook() {
 
         if (!cashbookBackup.data) throw new Error('Invalid Cashbook backup format');
 
-        // Extract budget allocations and transactions
-        const cloudBudget = cashbookBackup.data.budget || getDefaultCashbookBudget();
+        const cloudBudget = cashbookBackup.data.budget || null;
         const cloudTransactions = cashbookBackup.data.transactions || [];
+        const cloudOpeningBalance = cashbookBackup.data.openingBalance || 0;
         const cloudFY = cashbookBackup.data.activeFY || virementActiveFY;
         const cloudQ = cashbookBackup.data.activeQ || virementActiveQ;
+        const cloudDeletedBudgetKeys = cashbookBackup.data.deletedBudgetKeys || [];
 
-        // Calculate actual spend from cloud transactions
-        const catSpend = {};
-        cloudTransactions.forEach(t => {
-            if (t.category !== 'Cancelled' && t.category !== 'Subvention' && t.payment > 0) {
-                catSpend[t.category] = (catSpend[t.category] || 0) + t.payment;
-            }
-        });
+        // Store the downloaded data into localStorage (same keys the Cashbook uses)
+        // so it persists and loadBudgetFromCashbook() can read it for any quarter
+        const quarterKey = getCashbookQuarterKey(cloudFY, cloudQ);
+        localStorage.setItem(quarterKey, JSON.stringify({
+            openingBalance: cloudOpeningBalance,
+            transactions: cloudTransactions
+        }));
 
-        // Build budget data
-        const newBudgetData = [];
-        Object.keys(cloudBudget).forEach(catName => {
-            const mapping = CASHBOOK_CATEGORY_MAP[catName];
-            if (mapping) {
-                newBudgetData.push({
-                    id: mapping.id,
-                    name: mapping.name,
-                    allocated: cloudBudget[catName],
-                    actual: catSpend[catName] || 0
-                });
-            }
-        });
-
-        // Add unbudgeted categories with actual spend
-        Object.keys(catSpend).forEach(catName => {
-            if (!cloudBudget.hasOwnProperty(catName)) {
-                const mapping = CASHBOOK_CATEGORY_MAP[catName];
-                if (mapping && !newBudgetData.find(b => b.id === mapping.id)) {
-                    newBudgetData.push({
-                        id: mapping.id,
-                        name: mapping.name,
-                        allocated: 0,
-                        actual: catSpend[catName]
-                    });
-                }
-            }
-        });
-
-        if (newBudgetData.length > 0) {
-            budgetData = newBudgetData;
-            budgetDataSource = 'cashbook-cloud';
-
-            // Switch to the quarter from the cloud backup
-            virementActiveFY = cloudFY;
-            virementActiveQ = cloudQ;
-            document.querySelectorAll('.quarter-tab-btn').forEach((btn, i) => {
-                btn.classList.toggle('active', i + 1 === cloudQ);
-            });
-
-            updateQuarterDisplay();
-            updateVirementPeriod();
-            renderBudgetOverview();
-            renderRequests();
-            renderPrintPreview();
-            document.getElementById('virementLines').innerHTML = '';
-            addVirementLine();
-
-            const backupTime = new Date(cashbookBackup.timestamp).toLocaleString();
-            const savedBy = cashbookBackup.savedBy || 'Unknown';
-            alert('Budget data synced from Cashbook Dashboard cloud backup!\n\n' +
-                'Quarter: ' + getQuarterPeriodLabel(cloudFY, cloudQ) + '\n' +
-                'Backup saved by: ' + savedBy + '\n' +
-                'Backup date: ' + backupTime + '\n\n' +
-                'Budget lines updated: ' + newBudgetData.length);
-        } else {
-            throw new Error('No budget line data found in the Cashbook backup.');
+        // Store budget overrides if present
+        if (cloudBudget) {
+            localStorage.setItem('cestis_budget_overrides', JSON.stringify(cloudBudget));
         }
+        if (cloudDeletedBudgetKeys.length > 0) {
+            localStorage.setItem('cestis_budget_deleted', JSON.stringify(cloudDeletedBudgetKeys));
+        }
+
+        // Switch to the quarter from the cloud backup
+        virementActiveFY = cloudFY;
+        virementActiveQ = cloudQ;
+        document.querySelectorAll('.quarter-tab-btn').forEach((btn, i) => {
+            btn.classList.toggle('active', i + 1 === cloudQ);
+        });
+
+        // Now reload budget from the newly-stored localStorage data
+        loadBudgetFromCashbook();
+        budgetDataSource = 'cashbook-cloud';
+        updateQuarterDisplay();
+        updateVirementPeriod();
+        renderBudgetOverview();
+        renderRequests();
+        renderPrintPreview();
+        document.getElementById('virementLines').innerHTML = '';
+        addVirementLine();
+
+        const backupTime = new Date(cashbookBackup.timestamp).toLocaleString();
+        const savedBy = cashbookBackup.savedBy || 'Unknown';
+        alert('Budget data synced from Cashbook cloud backup!\n\n' +
+            'Quarter: ' + getQuarterPeriodLabel(cloudFY, cloudQ) + '\n' +
+            'Backup saved by: ' + savedBy + '\n' +
+            'Backup date: ' + backupTime + '\n\n' +
+            'Budget lines: ' + budgetData.length + '\n' +
+            'Transactions imported: ' + cloudTransactions.length);
 
     } catch (error) {
         console.error('Error syncing budget from cashbook:', error);
