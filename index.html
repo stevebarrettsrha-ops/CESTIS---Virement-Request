@@ -1581,36 +1581,22 @@ async function syncBudgetFromCashbook() {
     if (syncBtn) { syncBtn.disabled = true; syncBtn.innerHTML = '<span class="spinning">🔄</span> Syncing...'; }
 
     try {
-        // Search for the Cashbook backup file in the Cashbook folder first, then fall back to the Virement folder
+        // Search for the Cashbook backup file in the Cashbook Google Drive folder
         const cashbookFileName = 'CESTIS_CASHBOOK_DASHBOARD_BACKUP.json';
-        const foldersToSearch = [
-            { id: GOOGLE_DRIVE_CONFIG.CASHBOOK_FOLDER_ID, label: 'Cashbook Folder' },
-            { id: GOOGLE_DRIVE_CONFIG.FOLDER_ID, label: 'Virement Folder' }
-        ];
+        const query = "name='" + cashbookFileName + "' and '" + GOOGLE_DRIVE_CONFIG.CASHBOOK_FOLDER_ID + "' in parents and trashed=false";
+        const searchResponse = await fetch(
+            'https://www.googleapis.com/drive/v3/files?q=' + encodeURIComponent(query) + '&fields=files(id,name,modifiedTime)',
+            { headers: { 'Authorization': 'Bearer ' + googleAccessToken } }
+        );
 
-        let cashbookFileId = null;
-        let sourceFolder = '';
+        if (!searchResponse.ok) throw new Error('Failed to search for Cashbook backup');
 
-        for (const folder of foldersToSearch) {
-            const query = "name='" + cashbookFileName + "' and '" + folder.id + "' in parents and trashed=false";
-            const searchResponse = await fetch(
-                'https://www.googleapis.com/drive/v3/files?q=' + encodeURIComponent(query) + '&fields=files(id,name,modifiedTime)',
-                { headers: { 'Authorization': 'Bearer ' + googleAccessToken } }
-            );
-
-            if (!searchResponse.ok) continue;
-
-            const searchData = await searchResponse.json();
-            if (searchData.files && searchData.files.length > 0) {
-                cashbookFileId = searchData.files[0].id;
-                sourceFolder = folder.label;
-                break;
-            }
+        const searchData = await searchResponse.json();
+        if (!searchData.files || searchData.files.length === 0) {
+            throw new Error('No Cashbook Dashboard backup found in the Cashbook Google Drive folder.\nPlease save from the Cashbook Dashboard first.');
         }
 
-        if (!cashbookFileId) {
-            throw new Error('No Cashbook Dashboard backup found in Google Drive.\nPlease save from the Cashbook Dashboard first.');
-        }
+        const cashbookFileId = searchData.files[0].id;
 
         // Download the Cashbook backup
         const downloadResponse = await fetch(
@@ -1665,7 +1651,6 @@ async function syncBudgetFromCashbook() {
         const backupTime = new Date(cashbookBackup.timestamp).toLocaleString();
         const savedBy = cashbookBackup.savedBy || 'Unknown';
         alert('Budget data synced from Cashbook cloud backup!\n\n' +
-            'Source: ' + sourceFolder + '\n' +
             'Quarter: ' + getQuarterPeriodLabel(cloudFY, cloudQ) + '\n' +
             'Backup saved by: ' + savedBy + '\n' +
             'Backup date: ' + backupTime + '\n\n' +
