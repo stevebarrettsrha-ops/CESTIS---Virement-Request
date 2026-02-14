@@ -1792,15 +1792,10 @@ function initializeCloudSync() {
     const savedToken = localStorage.getItem('schoolDashboardGoogleAccessToken');
     const savedExpiry = localStorage.getItem('schoolDashboardGoogleTokenExpiry');
     const savedLastSync = localStorage.getItem('schoolDashboardLastSyncTime');
-    const savedFileId = localStorage.getItem('schoolDashboardCloudFileId');
 
     if (savedLastSync) {
         lastSyncTime = new Date(savedLastSync);
         updateLastSyncDisplay();
-    }
-
-    if (savedFileId) {
-        cloudFileId = savedFileId;
     }
 
     if (savedToken && savedExpiry) {
@@ -1809,6 +1804,9 @@ function initializeCloudSync() {
             googleAccessToken = savedToken;
             isCloudConnected = true;
             updateCloudUI(true);
+            // Re-lookup the backup file in the configured folder to ensure
+            // cloudFileId points to the correct folder (not a stale cached ID)
+            findExistingBackupFile();
             return;
         }
     }
