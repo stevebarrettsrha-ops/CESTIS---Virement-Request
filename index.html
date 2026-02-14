@@ -2179,6 +2179,10 @@ async function saveToCloud() {
     setCloudSyncing(true);
 
     try {
+        // Always re-lookup the backup file in the configured folder before saving
+        // to ensure cloudFileId is accurate and points to the correct folder
+        await findExistingBackupFile();
+
         const savedByName = 'Dashboard User';
         const backupData = {
             version: '1.0',
@@ -2190,11 +2194,11 @@ async function saveToCloud() {
         };
 
         const jsonContent = JSON.stringify(backupData, null, 2);
-        const blob = new Blob([jsonContent], { type: 'application/json' });
 
         let response;
 
         if (cloudFileId) {
+            // Update existing file content
             response = await fetch(
                 `https://www.googleapis.com/upload/drive/v3/files/${cloudFileId}?uploadType=media`,
                 {
@@ -2203,26 +2207,52 @@ async function saveToCloud() {
                         'Authorization': `Bearer ${googleAccessToken}`,
                         'Content-Type': 'application/json'
                     },
-                    body: blob
+                    body: jsonContent
                 }
             );
+
+            if (response.ok) {
+                // Ensure the file is in the correct folder (move it if needed)
+                await fetch(
+                    `https://www.googleapis.com/drive/v3/files/${cloudFileId}?addParents=${GOOGLE_DRIVE_CONFIG.FOLDER_ID}&fields=id,parents`,
+                    {
+                        method: 'PATCH',
+                        headers: {
+                            'Authorization': `Bearer ${googleAccessToken}`,
+                            'Content-Type': 'application/json'
+                        }
+                    }
+                );
+            }
         } else {
-            const metadata = {
+            // Create new file using proper multipart/related format
+            // (FormData produces multipart/form-data which may cause the
+            // parents metadata to be ignored, placing the file in Drive root)
+            const boundary = 'cestis_boundary_' + Date.now();
+            const metadata = JSON.stringify({
                 name: GOOGLE_DRIVE_CONFIG.BACKUP_FILE_NAME,
                 parents: [GOOGLE_DRIVE_CONFIG.FOLDER_ID],
                 mimeType: 'application/json'
-            };
+            });
 
-            const formData = new FormData();
-            formData.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-            formData.append('file', blob);
+            const multipartBody =
+                `--${boundary}\r\n` +
+                `Content-Type: application/json; charset=UTF-8\r\n\r\n` +
+                metadata + `\r\n` +
+                `--${boundary}\r\n` +
+                `Content-Type: application/json\r\n\r\n` +
+                jsonContent + `\r\n` +
+                `--${boundary}--`;
 
             response = await fetch(
-                'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name',
+                'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,parents',
                 {
                     method: 'POST',
-                    headers: { 'Authorization': `Bearer ${googleAccessToken}` },
-                    body: formData
+                    headers: {
+                        'Authorization': `Bearer ${googleAccessToken}`,
+                        'Content-Type': `multipart/related; boundary=${boundary}`
+                    },
+                    body: multipartBody
                 }
             );
 
