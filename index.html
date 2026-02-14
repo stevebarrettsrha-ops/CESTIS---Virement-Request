@@ -868,7 +868,14 @@ const QUARTER_META = [
 // Active quarter state for the Virement Dashboard
 let virementActiveFY = '2025/2026';
 let virementActiveQ = 3;
-let budgetDataSource = 'default'; // 'default', 'cashbook-local', 'cashbook-cloud'
+let budgetDataSource = 'no-data'; // 'no-data', 'cashbook-cloud'
+
+// Per-quarter cloud cache: stores budget data synced from Google Drive
+// Key format: { '2025/2026_Q3': { budget: {...}, transactions: [...] }, ... }
+let cloudQuarterCache = {};
+
+// Persistence key for cloud cache in localStorage (virement-specific, not shared with Cashbook)
+const VIREMENT_CLOUD_CACHE_KEY = 'cesti_virement_cloud_cache';
 
 // Mapping from Cashbook Dashboard category names to Virement Dashboard IDs/names
 const CASHBOOK_CATEGORY_MAP = {
@@ -898,7 +905,7 @@ const CASHBOOK_CATEGORY_MAP = {
 };
 
 function getQuarterMeta(q) { return QUARTER_META.find(m => m.q === q); }
-function getCashbookQuarterKey(fy, q) { return 'cestis_quarter_' + fy + '_Q' + q; }
+
 function getQuarterCalendarYear(fy, q) {
     const startYear = parseInt(fy.split('/')[0]);
     return q === 4 ? startYear + 1 : startYear;
@@ -917,8 +924,8 @@ function getQuarterShortLabel(fy, q) {
 // ═══════════════════════════════════════════════════════════
 //  DATA
 // ═══════════════════════════════════════════════════════════
-// Dynamic budget data — populated by loadBudgetFromCashbook() on init
-// Starts empty; will be filled from Cashbook localStorage or show all-zeros
+// Dynamic budget data — populated by loadBudgetForQuarter() on init
+// Starts empty; will be filled from cloud cache or show all-zeros
 let budgetData = Object.values(CASHBOOK_CATEGORY_MAP).map(m => ({
     id: m.id, name: m.name, allocated: 0, actual: 0
 }));
@@ -931,8 +938,9 @@ let currentModalIdx = -1;
 // ═══════════════════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', function(){
     loadAllData();
-    // Try to load budget data from Cashbook Dashboard (same origin localStorage)
-    loadBudgetFromCashbook();
+    loadCloudCache();
+    // Load budget data from cloud cache (Google Drive only)
+    loadBudgetForQuarter();
     updateVirementPeriod();
     renderBudgetOverview();
     renderRequests();
@@ -1289,8 +1297,8 @@ function switchVirementQuarter(q) {
     document.querySelectorAll('.quarter-tab-btn').forEach((btn, i) => {
         btn.classList.toggle('active', i + 1 === q);
     });
-    // Try to load budget data from cashbook for this quarter
-    loadBudgetFromCashbook();
+    // Load budget data from cloud cache for this quarter
+    loadBudgetForQuarter();
     // Update the period input in the virement form
     updateVirementPeriod();
     // Re-render everything
@@ -1343,83 +1351,82 @@ function updateQuarterDisplay() {
     }
 }
 
-// Load budget data from the Cashbook Dashboard's localStorage (same origin)
-function loadBudgetFromCashbook() {
-    const quarterKey = getCashbookQuarterKey(virementActiveFY, virementActiveQ);
+// Load cloud cache from localStorage on startup
+function loadCloudCache() {
     try {
-        // 1. Try to read the Cashbook's quarter data from shared localStorage
-        const quarterDataStr = localStorage.getItem(quarterKey);
-        // 2. Read the Cashbook's budget allocations
-        const budgetOverridesStr = localStorage.getItem('cestis_budget_overrides');
-        const budgetDeletedStr = localStorage.getItem('cestis_budget_deleted');
+        const cached = localStorage.getItem(VIREMENT_CLOUD_CACHE_KEY);
+        if (cached) cloudQuarterCache = JSON.parse(cached);
+    } catch(e) {
+        console.error('Error loading cloud cache:', e);
+        cloudQuarterCache = {};
+    }
+}
 
-        let cashbookBudget = null;
-        if (budgetOverridesStr) {
-            cashbookBudget = JSON.parse(budgetOverridesStr);
-            // Remove deleted keys
-            if (budgetDeletedStr) {
-                const deletedKeys = JSON.parse(budgetDeletedStr);
-                deletedKeys.forEach(k => delete cashbookBudget[k]);
+// Save cloud cache to localStorage
+function saveCloudCache() {
+    try {
+        localStorage.setItem(VIREMENT_CLOUD_CACHE_KEY, JSON.stringify(cloudQuarterCache));
+    } catch(e) {
+        console.error('Error saving cloud cache:', e);
+    }
+}
+
+// Load budget data for the active quarter from the cloud cache only.
+// If no cloud data exists for this quarter, show all zeros.
+function loadBudgetForQuarter() {
+    const cacheKey = virementActiveFY + '_Q' + virementActiveQ;
+    const cached = cloudQuarterCache[cacheKey];
+
+    if (cached && cached.budget && Object.keys(cached.budget).length > 0) {
+        const sourceBudget = cached.budget;
+        const transactions = cached.transactions || [];
+
+        // Calculate actual spend per category from transactions
+        const catSpend = {};
+        transactions.forEach(t => {
+            if (t.category !== 'Cancelled' && t.category !== 'Subvention' && t.payment > 0) {
+                catSpend[t.category] = (catSpend[t.category] || 0) + t.payment;
             }
-        }
+        });
 
-        if (quarterDataStr) {
-            const quarterData = JSON.parse(quarterDataStr);
-            const transactions = quarterData.transactions || [];
+        // Build budgetData
+        const newBudgetData = [];
+        Object.keys(sourceBudget).forEach(catName => {
+            const mapping = CASHBOOK_CATEGORY_MAP[catName];
+            if (mapping) {
+                newBudgetData.push({
+                    id: mapping.id,
+                    name: mapping.name,
+                    allocated: sourceBudget[catName],
+                    actual: catSpend[catName] || 0
+                });
+            }
+        });
 
-            // Calculate actual spend per category from transactions
-            const catSpend = {};
-            transactions.forEach(t => {
-                if (t.category !== 'Cancelled' && t.category !== 'Subvention' && t.payment > 0) {
-                    catSpend[t.category] = (catSpend[t.category] || 0) + t.payment;
-                }
-            });
-
-            // Build budgetData from cashbook data
-            const newBudgetData = [];
-            const sourceBudget = cashbookBudget || getDefaultCashbookBudget();
-
-            Object.keys(sourceBudget).forEach(catName => {
+        // Add any categories with actual spend that aren't in the budget
+        Object.keys(catSpend).forEach(catName => {
+            if (!sourceBudget.hasOwnProperty(catName)) {
                 const mapping = CASHBOOK_CATEGORY_MAP[catName];
-                if (mapping) {
+                if (mapping && !newBudgetData.find(b => b.id === mapping.id)) {
                     newBudgetData.push({
                         id: mapping.id,
                         name: mapping.name,
-                        allocated: sourceBudget[catName],
-                        actual: catSpend[catName] || 0
+                        allocated: 0,
+                        actual: catSpend[catName]
                     });
                 }
-            });
-
-            // Also add any categories with actual spend that aren't in the budget
-            Object.keys(catSpend).forEach(catName => {
-                if (!sourceBudget.hasOwnProperty(catName)) {
-                    const mapping = CASHBOOK_CATEGORY_MAP[catName];
-                    if (mapping && !newBudgetData.find(b => b.id === mapping.id)) {
-                        newBudgetData.push({
-                            id: mapping.id,
-                            name: mapping.name,
-                            allocated: 0,
-                            actual: catSpend[catName]
-                        });
-                    }
-                }
-            });
-
-            if (newBudgetData.length > 0) {
-                budgetData = newBudgetData;
-                budgetDataSource = 'cashbook-local';
-                updateQuarterDisplay();
-                return true;
             }
-        }
+        });
 
-        // No quarter data exists — fall through to empty state
-    } catch (e) {
-        console.error('Error loading budget from cashbook localStorage:', e);
+        if (newBudgetData.length > 0) {
+            budgetData = newBudgetData;
+            budgetDataSource = 'cashbook-cloud';
+            updateQuarterDisplay();
+            return true;
+        }
     }
 
-    // No Cashbook data for this quarter — show all zeros
+    // No cloud data for this quarter — all zeros
     budgetData = Object.values(CASHBOOK_CATEGORY_MAP).map(mapping => ({
         id: mapping.id,
         name: mapping.name,
@@ -1431,38 +1438,11 @@ function loadBudgetFromCashbook() {
     return false;
 }
 
-// Default cashbook budget (used when no overrides exist in localStorage)
-function getDefaultCashbookBudget() {
-    return {
-        'Coordinator Salary':345394.95, 'Asst. Coordinator':234000, 'Statutory Deductions':457490.66,
-        'Admin Expenses':150000, 'Training Material':150000, 'Assessor Fees':250000,
-        'Utilities':150000, 'Maintenance':150000,
-        'Welding L3 Instructor':308091.99, 'Electrical L3 Instructor':308091.99,
-        'Welding Instructor':287829.27, 'BT Instructor':287829.27, 'Electrical Instructor':287829.27,
-        'BNV Welding Instructor':287829.27, 'BNV Electrical Instructor':287829.27,
-        'Data Instructor':193800, 'Remedial English':193800, 'Personal Dev':0,
-        'Entrep Instructor':193800, 'Math Instructor':193800,
-        'Bank Charges':30000, 'Travelling':0, 'Lunch':0
-    };
-}
-
-// Sync budget data from Cashbook Dashboard's cloud backup (Google Drive)
-// Downloads the Cashbook backup, stores quarter data + budget in localStorage,
-// then reloads using the standard loadBudgetFromCashbook() path.
+// Sync budget data from Cashbook Dashboard's cloud backup (Google Drive).
+// Downloads the backup, stores data in per-quarter cloud cache, then renders.
 async function syncBudgetFromCashbook() {
     if (!isCloudConnected || !googleAccessToken) {
-        // Try loading from localStorage first (same origin)
-        const loaded = loadBudgetFromCashbook();
-        if (loaded) {
-            renderBudgetOverview();
-            renderRequests();
-            renderPrintPreview();
-            document.getElementById('virementLines').innerHTML = '';
-            addVirementLine();
-            alert('Budget data synced from Cashbook Dashboard (local storage).\n\nQuarter: ' + getQuarterPeriodLabel(virementActiveFY, virementActiveQ));
-            return;
-        }
-        alert('Please connect to Google Drive first to sync budget data from the cloud.\n\nAlternatively, open the Cashbook Dashboard in another tab to populate local storage.');
+        alert('Please connect to Google Drive first to sync budget data from the Cashbook cloud backup.');
         return;
     }
 
@@ -1499,28 +1479,25 @@ async function syncBudgetFromCashbook() {
 
         if (!cashbookBackup.data) throw new Error('Invalid Cashbook backup format');
 
-        const cloudBudget = cashbookBackup.data.budget || null;
+        const cloudBudget = cashbookBackup.data.budget || {};
         const cloudTransactions = cashbookBackup.data.transactions || [];
-        const cloudOpeningBalance = cashbookBackup.data.openingBalance || 0;
         const cloudFY = cashbookBackup.data.activeFY || virementActiveFY;
         const cloudQ = cashbookBackup.data.activeQ || virementActiveQ;
         const cloudDeletedBudgetKeys = cashbookBackup.data.deletedBudgetKeys || [];
 
-        // Store the downloaded data into localStorage (same keys the Cashbook uses)
-        // so it persists and loadBudgetFromCashbook() can read it for any quarter
-        const quarterKey = getCashbookQuarterKey(cloudFY, cloudQ);
-        localStorage.setItem(quarterKey, JSON.stringify({
-            openingBalance: cloudOpeningBalance,
-            transactions: cloudTransactions
-        }));
-
-        // Store budget overrides if present
-        if (cloudBudget) {
-            localStorage.setItem('cestis_budget_overrides', JSON.stringify(cloudBudget));
-        }
+        // Remove deleted budget keys
         if (cloudDeletedBudgetKeys.length > 0) {
-            localStorage.setItem('cestis_budget_deleted', JSON.stringify(cloudDeletedBudgetKeys));
+            cloudDeletedBudgetKeys.forEach(k => delete cloudBudget[k]);
         }
+
+        // Store ONLY for the quarter that the backup belongs to
+        const cacheKey = cloudFY + '_Q' + cloudQ;
+        cloudQuarterCache[cacheKey] = {
+            budget: cloudBudget,
+            transactions: cloudTransactions,
+            syncedAt: new Date().toISOString()
+        };
+        saveCloudCache();
 
         // Switch to the quarter from the cloud backup
         virementActiveFY = cloudFY;
@@ -1529,10 +1506,8 @@ async function syncBudgetFromCashbook() {
             btn.classList.toggle('active', i + 1 === cloudQ);
         });
 
-        // Now reload budget from the newly-stored localStorage data
-        loadBudgetFromCashbook();
-        budgetDataSource = 'cashbook-cloud';
-        updateQuarterDisplay();
+        // Load from the cloud cache
+        loadBudgetForQuarter();
         updateVirementPeriod();
         renderBudgetOverview();
         renderRequests();
@@ -2198,8 +2173,8 @@ async function syncFromCloud() {
             saveAllData();
         }
 
-        // Also try to sync budget data from Cashbook
-        loadBudgetFromCashbook();
+        // Reload budget from cloud cache
+        loadBudgetForQuarter();
 
         lastSyncTime = new Date();
         localStorage.setItem('schoolDashboardLastSyncTime', lastSyncTime.toISOString());
@@ -2288,8 +2263,8 @@ async function mergeFromCloud() {
             }
         }
 
-        // Also try to sync budget data from Cashbook
-        loadBudgetFromCashbook();
+        // Reload budget from cloud cache
+        loadBudgetForQuarter();
 
         lastSyncTime = new Date();
         localStorage.setItem('schoolDashboardLastSyncTime', lastSyncTime.toISOString());
