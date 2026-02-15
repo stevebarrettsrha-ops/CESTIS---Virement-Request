@@ -398,6 +398,14 @@
         .quarter-tab-btn:hover { color: var(--text); background: rgba(255,255,255,0.04); }
         .quarter-tab-btn.active { background: var(--gold); color: var(--navy); }
         .quarter-tab-btn + .quarter-tab-btn { border-left: 1px solid var(--border); }
+        .quarter-tab-btn .q-data-dot {
+            display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+            margin-left: 5px; vertical-align: middle;
+        }
+        .quarter-tab-btn .q-data-dot.has-data { background: var(--emerald); box-shadow: 0 0 4px rgba(16,185,129,0.5); }
+        .quarter-tab-btn .q-data-dot.no-data { background: var(--slate-dim); opacity: 0.4; }
+        .quarter-tab-btn.active .q-data-dot.has-data { background: #065f46; box-shadow: none; }
+        .quarter-tab-btn.active .q-data-dot.no-data { background: rgba(10,22,40,0.3); box-shadow: none; }
         .quarter-fy {
             font-size: 0.78rem; color: var(--gold); font-weight: 700;
             letter-spacing: 1px; font-family: 'DM Sans', sans-serif;
@@ -755,10 +763,10 @@
     <!-- Quarter Selector -->
     <div class="quarter-bar">
         <div class="quarter-tabs">
-            <button class="quarter-tab-btn" onclick="switchVirementQuarter(1)">Q1 Apr-Jun</button>
-            <button class="quarter-tab-btn" onclick="switchVirementQuarter(2)">Q2 Jul-Sep</button>
-            <button class="quarter-tab-btn" onclick="switchVirementQuarter(3)">Q3 Oct-Dec</button>
-            <button class="quarter-tab-btn" onclick="switchVirementQuarter(4)">Q4 Jan-Mar</button>
+            <button class="quarter-tab-btn" onclick="switchVirementQuarter(1)">Q1 Apr-Jun<span class="q-data-dot no-data" id="qDot1"></span></button>
+            <button class="quarter-tab-btn" onclick="switchVirementQuarter(2)">Q2 Jul-Sep<span class="q-data-dot no-data" id="qDot2"></span></button>
+            <button class="quarter-tab-btn" onclick="switchVirementQuarter(3)">Q3 Oct-Dec<span class="q-data-dot no-data" id="qDot3"></span></button>
+            <button class="quarter-tab-btn" onclick="switchVirementQuarter(4)">Q4 Jan-Mar<span class="q-data-dot no-data" id="qDot4"></span></button>
         </div>
         <div class="fy-selector">
             <button class="fy-nav-btn" onclick="shiftFiscalYear(-1)" title="Previous Fiscal Year">◀</button>
@@ -772,7 +780,7 @@
     </div>
     <div id="quarterEmptyBanner" class="quarter-empty-banner" style="display:none;">
         <span class="banner-icon">⚠️</span>
-        <span><strong>No Cashbook data available for this quarter.</strong> Open the Cashbook Dashboard and enter transactions, or use <em>Sync Budget from Cashbook</em> to pull cloud data.</span>
+        <span id="quarterEmptyText"><strong>No Cashbook data available for this quarter.</strong> Use <em>Sync Budget from Cashbook</em> to pull cloud data for all available quarters.</span>
     </div>
     <div class="stat-row" id="statsRow"></div>
     <div class="chart-grid" id="chartArea"></div>
@@ -954,6 +962,47 @@ function getQuarterShortLabel(fy, q) {
     return meta.shortLabel.replace('–','-').toUpperCase() + ' ' + yr;
 }
 
+// Determine fiscal year and quarter from a date string or Date object.
+// Returns { fy: '2025/2026', q: 3 }
+function getFYQuarterFromDate(dateVal) {
+    const d = (dateVal instanceof Date) ? dateVal : new Date(dateVal);
+    if (isNaN(d.getTime())) return null;
+    const month = d.getMonth() + 1; // 1-12
+    const year = d.getFullYear();
+    // FY starts in April
+    const fyStart = month >= 4 ? year : year - 1;
+    const fy = fyStart + '/' + (fyStart + 1);
+    const q = (month >= 4 && month <= 6) ? 1
+            : (month >= 7 && month <= 9) ? 2
+            : (month >= 10 && month <= 12) ? 3 : 4;
+    return { fy, q };
+}
+
+// Get all FY+Q cache keys that have data in cloudQuarterCache
+function getCachedQuarterKeys() {
+    return Object.keys(cloudQuarterCache).filter(key => {
+        const c = cloudQuarterCache[key];
+        return c && c.budget && Object.keys(c.budget).length > 0;
+    });
+}
+
+// Check if a specific FY+Q has cached data
+function hasQuarterData(fy, q) {
+    const key = fy + '_Q' + q;
+    const c = cloudQuarterCache[key];
+    return !!(c && c.budget && Object.keys(c.budget).length > 0);
+}
+
+// Get all unique fiscal years that have cached data
+function getCachedFiscalYears() {
+    const fys = new Set();
+    getCachedQuarterKeys().forEach(key => {
+        const parts = key.split('_Q');
+        if (parts.length === 2) fys.add(parts[0]);
+    });
+    return Array.from(fys).sort();
+}
+
 // ═══════════════════════════════════════════════════════════
 //  DATA
 // ═══════════════════════════════════════════════════════════
@@ -981,6 +1030,7 @@ document.addEventListener('DOMContentLoaded', function(){
     // Load budget data from cloud cache (Google Drive only)
     loadBudgetForQuarter();
     updateVirementPeriod();
+    updateQuarterTabIndicators();
     renderBudgetOverview();
     renderRequests();
     renderPrintPreview();
@@ -1356,6 +1406,9 @@ function switchVirementQuarter(q) {
     loadBudgetForQuarter();
     // Update the period input in the virement form
     updateVirementPeriod();
+    // Update quarter tab data indicators (dots don't change per quarter switch
+    // within same FY, but keeping for consistency)
+    updateQuarterTabIndicators();
     // Re-render everything
     renderBudgetOverview();
     renderRequests();
@@ -1389,24 +1442,52 @@ function updateQuarterDisplay() {
         fySelect.value = virementActiveFY;
     }
     if (badge) {
+        const cachedCount = getCachedQuarterKeys().length;
         if (budgetDataSource === 'cashbook-local') {
             badge.textContent = 'SYNCED FROM CASHBOOK';
             badge.className = 'budget-source-badge synced';
         } else if (budgetDataSource === 'cashbook-cloud') {
-            badge.textContent = 'SYNCED FROM CLOUD';
+            badge.textContent = cachedCount > 1 ? 'SYNCED (' + cachedCount + ' QUARTERS)' : 'SYNCED FROM CLOUD';
             badge.className = 'budget-source-badge cloud';
         } else if (budgetDataSource === 'no-data') {
-            badge.textContent = 'NO DATA';
+            badge.textContent = cachedCount > 0 ? 'NO DATA (other quarters available)' : 'NO DATA';
             badge.className = 'budget-source-badge no-data';
         } else {
             badge.textContent = 'DEFAULT DATA';
             badge.className = 'budget-source-badge default';
         }
     }
-    // Show/hide the empty state banner
+    // Show/hide the empty state banner and update its text
     const emptyBanner = document.getElementById('quarterEmptyBanner');
     if (emptyBanner) {
         emptyBanner.style.display = budgetDataSource === 'no-data' ? 'flex' : 'none';
+        if (budgetDataSource === 'no-data') {
+            const emptyText = document.getElementById('quarterEmptyText');
+            if (emptyText) {
+                const cachedKeys = getCachedQuarterKeys();
+                if (cachedKeys.length > 0) {
+                    // Show which quarters DO have data
+                    const availableList = cachedKeys.map(key => {
+                        const parts = key.split('_Q');
+                        const qMeta = getQuarterMeta(parseInt(parts[1]));
+                        return parts[0] + ' ' + qMeta.label;
+                    }).join(', ');
+                    emptyText.innerHTML = '<strong>No Cashbook data for this quarter.</strong> Data is available for: ' + availableList + '. Switch quarters using the tabs above, or <em>Sync Budget from Cashbook</em> to pull the latest data.';
+                } else {
+                    emptyText.innerHTML = '<strong>No Cashbook data available for this quarter.</strong> Use <em>Sync Budget from Cashbook</em> to pull cloud data for all available quarters.';
+                }
+            }
+        }
+    }
+}
+
+// Update quarter tab indicators to show which quarters have data
+function updateQuarterTabIndicators() {
+    for (let q = 1; q <= 4; q++) {
+        const dot = document.getElementById('qDot' + q);
+        if (dot) {
+            dot.className = hasQuarterData(virementActiveFY, q) ? 'q-data-dot has-data' : 'q-data-dot no-data';
+        }
     }
 }
 
@@ -1414,19 +1495,21 @@ function updateQuarterDisplay() {
 //  FISCAL YEAR SELECTOR
 // ═══════════════════════════════════════════════════════════
 
-// Generate list of available fiscal years (range around current)
+// Generate list of available fiscal years (range around current + all cached)
 function getFiscalYearOptions() {
     const now = new Date();
     const currentMonth = now.getMonth() + 1; // 1-12
     const currentYear = now.getFullYear();
     // FY starts in April: if Jan-Mar, we're in the FY that started last year
     const currentFYStart = currentMonth >= 4 ? currentYear : currentYear - 1;
-    const years = [];
+    const fySet = new Set();
     // Show 3 years back and 1 year forward from current FY
     for (let y = currentFYStart - 3; y <= currentFYStart + 1; y++) {
-        years.push(y + '/' + (y + 1));
+        fySet.add(y + '/' + (y + 1));
     }
-    return years;
+    // Include all fiscal years that have cached data
+    getCachedFiscalYears().forEach(fy => fySet.add(fy));
+    return Array.from(fySet).sort();
 }
 
 // Populate the FY dropdown and select the active FY
@@ -1451,6 +1534,7 @@ function switchFiscalYear(fy) {
     // Reload budget data for the new FY + current quarter
     loadBudgetForQuarter();
     updateVirementPeriod();
+    updateQuarterTabIndicators();
     renderBudgetOverview();
     renderRequests();
     renderPrintPreview();
@@ -1570,7 +1654,8 @@ function loadBudgetForQuarter() {
 }
 
 // Sync budget data from Cashbook Dashboard's cloud backup (Google Drive).
-// Downloads the backup, stores data in per-quarter cloud cache, then renders.
+// Downloads the backup, parses ALL available quarters, stores each in the
+// per-quarter cloud cache, then renders the active quarter.
 async function syncBudgetFromCashbook() {
     if (!isCloudConnected || !googleAccessToken) {
         alert('Please connect to Google Drive first to sync budget data from the Cashbook cloud backup.');
@@ -1610,52 +1695,179 @@ async function syncBudgetFromCashbook() {
 
         if (!cashbookBackup.data) throw new Error('Invalid Cashbook backup format');
 
-        const cloudBudget = cashbookBackup.data.budget || {};
-        const cloudTransactions = cashbookBackup.data.transactions || [];
+        const cloudDeletedBudgetKeys = cashbookBackup.data.deletedBudgetKeys || [];
         const cloudFY = cashbookBackup.data.activeFY || virementActiveFY;
         const cloudQ = cashbookBackup.data.activeQ || virementActiveQ;
-        const cloudDeletedBudgetKeys = cashbookBackup.data.deletedBudgetKeys || [];
+        let quartersPopulated = [];
+        let totalTransactions = 0;
 
-        // Remove deleted budget keys
-        if (cloudDeletedBudgetKeys.length > 0) {
-            cloudDeletedBudgetKeys.forEach(k => delete cloudBudget[k]);
+        // ── STRATEGY 1: Per-quarter data structure ──
+        // Check if backup contains explicit per-quarter data (e.g., quarterData, quarters, allQuarters)
+        const perQuarterData = cashbookBackup.data.quarterData
+            || cashbookBackup.data.quarters
+            || cashbookBackup.data.allQuarters
+            || null;
+
+        if (perQuarterData && typeof perQuarterData === 'object') {
+            // Process each quarter from the per-quarter structure
+            Object.keys(perQuarterData).forEach(key => {
+                const qd = perQuarterData[key];
+                const qBudget = { ...(qd.budget || {}) };
+                const qTransactions = qd.transactions || [];
+                // Remove deleted budget keys
+                const qDeleted = qd.deletedBudgetKeys || cloudDeletedBudgetKeys;
+                qDeleted.forEach(k => delete qBudget[k]);
+
+                // Normalize key format to "YYYY/YYYY+1_QN"
+                let cacheKey = key;
+                if (!key.includes('_Q')) {
+                    // Try to parse if it's just "Q3" or "2025/2026-Q3" etc.
+                    const qMatch = key.match(/(\d{4}\/\d{4})[_\-]?Q?(\d)/i);
+                    if (qMatch) cacheKey = qMatch[1] + '_Q' + qMatch[2];
+                }
+
+                if (Object.keys(qBudget).length > 0 || qTransactions.length > 0) {
+                    cloudQuarterCache[cacheKey] = {
+                        budget: qBudget,
+                        transactions: qTransactions,
+                        syncedAt: new Date().toISOString()
+                    };
+                    quartersPopulated.push(cacheKey);
+                    totalTransactions += qTransactions.length;
+                }
+            });
         }
 
-        // Store ONLY for the quarter that the backup belongs to
-        const cacheKey = cloudFY + '_Q' + cloudQ;
-        cloudQuarterCache[cacheKey] = {
-            budget: cloudBudget,
-            transactions: cloudTransactions,
-            syncedAt: new Date().toISOString()
-        };
+        // ── STRATEGY 2: Single budget + all transactions — split by date ──
+        // If no per-quarter data was found, or as a supplement, process
+        // the flat budget & transactions arrays
+        const cloudBudget = cashbookBackup.data.budget || {};
+        const cloudTransactions = cashbookBackup.data.transactions || [];
+
+        // Remove deleted budget keys from the flat budget
+        const cleanBudget = { ...cloudBudget };
+        cloudDeletedBudgetKeys.forEach(k => delete cleanBudget[k]);
+
+        if (cloudTransactions.length > 0) {
+            // Group transactions by fiscal year and quarter based on date
+            const txByQuarter = {};
+            let undatedCount = 0;
+
+            cloudTransactions.forEach(t => {
+                // Try to parse the transaction date from common fields
+                const txDate = t.date || t.transactionDate || t.dt || null;
+                const fqInfo = txDate ? getFYQuarterFromDate(txDate) : null;
+
+                if (fqInfo) {
+                    const key = fqInfo.fy + '_Q' + fqInfo.q;
+                    if (!txByQuarter[key]) txByQuarter[key] = [];
+                    txByQuarter[key].push(t);
+                } else {
+                    // Transactions without parseable dates go to the backup's active quarter
+                    undatedCount++;
+                    const fallbackKey = cloudFY + '_Q' + cloudQ;
+                    if (!txByQuarter[fallbackKey]) txByQuarter[fallbackKey] = [];
+                    txByQuarter[fallbackKey].push(t);
+                }
+            });
+
+            // Create/update cache entries for each quarter found in transactions
+            Object.keys(txByQuarter).forEach(key => {
+                // Only update if this quarter wasn't already populated by Strategy 1
+                if (!quartersPopulated.includes(key)) {
+                    cloudQuarterCache[key] = {
+                        budget: { ...cleanBudget },
+                        transactions: txByQuarter[key],
+                        syncedAt: new Date().toISOString()
+                    };
+                    quartersPopulated.push(key);
+                    totalTransactions += txByQuarter[key].length;
+                } else {
+                    // Merge transactions if quarter already exists but add any new ones
+                    const existing = cloudQuarterCache[key];
+                    const existingIds = new Set(existing.transactions.map(t => t.id || JSON.stringify(t)));
+                    txByQuarter[key].forEach(t => {
+                        const tId = t.id || JSON.stringify(t);
+                        if (!existingIds.has(tId)) {
+                            existing.transactions.push(t);
+                            totalTransactions++;
+                        }
+                    });
+                }
+            });
+
+            if (undatedCount > 0) {
+                console.warn('syncBudgetFromCashbook: ' + undatedCount + ' transactions had no parseable date, assigned to ' + cloudFY + '_Q' + cloudQ);
+            }
+        } else if (quartersPopulated.length === 0 && Object.keys(cleanBudget).length > 0) {
+            // No transactions at all, but we have budget data — store for the active quarter
+            const fallbackKey = cloudFY + '_Q' + cloudQ;
+            cloudQuarterCache[fallbackKey] = {
+                budget: { ...cleanBudget },
+                transactions: [],
+                syncedAt: new Date().toISOString()
+            };
+            quartersPopulated.push(fallbackKey);
+        }
+
         saveCloudCache();
 
-        // Switch to the quarter from the cloud backup
-        virementActiveFY = cloudFY;
-        virementActiveQ = cloudQ;
+        // Sort populated quarters for display
+        quartersPopulated.sort();
+
+        // Switch to the backup's active quarter (or the most recent quarter with data)
+        let navFY = cloudFY;
+        let navQ = cloudQ;
+        if (quartersPopulated.length > 0) {
+            // If the backup's active quarter has data, use it; otherwise use the latest
+            const activeKey = cloudFY + '_Q' + cloudQ;
+            if (!quartersPopulated.includes(activeKey)) {
+                const latest = quartersPopulated[quartersPopulated.length - 1];
+                const parts = latest.split('_Q');
+                navFY = parts[0];
+                navQ = parseInt(parts[1]);
+            }
+        }
+
+        virementActiveFY = navFY;
+        virementActiveQ = navQ;
         document.querySelectorAll('.quarter-tab-btn').forEach((btn, i) => {
-            btn.classList.toggle('active', i + 1 === cloudQ);
+            btn.classList.toggle('active', i + 1 === navQ);
         });
-        // Update FY dropdown to reflect the synced fiscal year
+        // Update FY dropdown to include all fiscal years with data
         populateFYSelector();
 
         // Load from the cloud cache
         loadBudgetForQuarter();
         updateVirementPeriod();
+        updateQuarterTabIndicators();
         renderBudgetOverview();
         renderRequests();
         renderPrintPreview();
         document.getElementById('virementLines').innerHTML = '';
         addVirementLine();
 
+        // Build a detailed summary
         const backupTime = new Date(cashbookBackup.timestamp).toLocaleString();
         const savedBy = cashbookBackup.savedBy || 'Unknown';
+
+        let quarterSummary = quartersPopulated.map(key => {
+            const parts = key.split('_Q');
+            const qNum = parseInt(parts[1]);
+            const qMeta = getQuarterMeta(qNum);
+            const txCount = (cloudQuarterCache[key] && cloudQuarterCache[key].transactions)
+                ? cloudQuarterCache[key].transactions.length : 0;
+            return '  ' + parts[0] + ' ' + qMeta.label + ' (' + txCount + ' transactions)';
+        }).join('\n');
+
         alert('Budget data synced from Cashbook cloud backup!\n\n' +
-            'Quarter: ' + getQuarterPeriodLabel(cloudFY, cloudQ) + '\n' +
+            'Quarters populated: ' + quartersPopulated.length + '\n' +
+            quarterSummary + '\n\n' +
+            'Active view: ' + getQuarterPeriodLabel(navFY, navQ) + '\n' +
+            'Total transactions: ' + totalTransactions + '\n' +
+            'Budget lines: ' + budgetData.length + '\n\n' +
             'Backup saved by: ' + savedBy + '\n' +
-            'Backup date: ' + backupTime + '\n\n' +
-            'Budget lines: ' + budgetData.length + '\n' +
-            'Transactions imported: ' + cloudTransactions.length);
+            'Backup date: ' + backupTime);
 
     } catch (error) {
         console.error('Error syncing budget from cashbook:', error);
@@ -2049,6 +2261,9 @@ async function submitGoogleToken() {
 
         await findExistingBackupFile();
 
+        // Auto-sync budget data from Cashbook after connecting
+        autoSyncCashbookOnConnect();
+
     } catch (error) {
         console.error('Token verification failed:', error);
         alert('❌ Invalid access token. Please make sure you copied the correct token.');
@@ -2067,6 +2282,23 @@ async function handleGoogleAuthCallback(tokenResponse) {
     updateCloudUI(true);
 
     await findExistingBackupFile();
+
+    // Auto-sync budget data from Cashbook after connecting
+    autoSyncCashbookOnConnect();
+}
+
+// Automatically sync Cashbook budget data when connecting to Google Drive,
+// if no cached data exists yet for the current quarter.
+async function autoSyncCashbookOnConnect() {
+    const cachedKeys = getCachedQuarterKeys();
+    // Only auto-sync if we have no cached data at all or current quarter has no data
+    if (cachedKeys.length === 0 || !hasQuarterData(virementActiveFY, virementActiveQ)) {
+        try {
+            await syncBudgetFromCashbook();
+        } catch(e) {
+            console.log('Auto-sync on connect skipped or failed:', e.message);
+        }
+    }
 }
 
 function handleGoogleAuthError(error) {
