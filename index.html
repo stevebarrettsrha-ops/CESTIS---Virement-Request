@@ -278,6 +278,114 @@
         }
         .badge-pending { background: rgba(245,158,11,0.15); color: #fbbf24; }
         .badge-approved { background: rgba(16,185,129,0.15); color: var(--emerald); }
+        .badge-rejected { background: rgba(244,63,94,0.15); color: var(--rose); }
+
+        /* ─── ADMIN APPROVAL PAGE ─── */
+        .admin-gate {
+            max-width: 400px; margin: 3rem auto; text-align: center;
+            background: var(--card); border: 1px solid var(--border);
+            border-radius: var(--radius); padding: 2.5rem 2rem;
+        }
+        .admin-gate h3 { color: var(--gold); margin-bottom: 0.5rem; font-size: 1.1rem; }
+        .admin-gate p { color: var(--text-dim); font-size: 0.82rem; margin-bottom: 1.5rem; }
+        .admin-gate .pin-input {
+            width: 180px; text-align: center; padding: 0.6rem 1rem;
+            background: var(--surface); color: var(--text); border: 1px solid var(--border);
+            border-radius: 6px; font-size: 1.1rem; letter-spacing: 6px;
+            font-family: 'Courier New', monospace;
+        }
+        .admin-gate .pin-input:focus { outline: none; border-color: var(--gold); }
+        .admin-gate .pin-error {
+            color: var(--rose); font-size: 0.78rem; margin-top: 0.5rem; min-height: 1.2em;
+        }
+        .admin-gate .btn-gold { margin-top: 1rem; padding: 0.6rem 2rem; }
+
+        .approval-stats {
+            display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap;
+        }
+        .approval-stat-card {
+            flex: 1; min-width: 140px; background: var(--card);
+            border: 1px solid var(--border); border-radius: var(--radius);
+            padding: 1rem 1.25rem; text-align: center;
+        }
+        .approval-stat-card .stat-num {
+            font-size: 1.8rem; font-weight: 700; line-height: 1;
+        }
+        .approval-stat-card .stat-num.pending-num { color: #fbbf24; }
+        .approval-stat-card .stat-num.approved-num { color: var(--emerald); }
+        .approval-stat-card .stat-num.rejected-num { color: var(--rose); }
+        .approval-stat-card .stat-label {
+            font-size: 0.72rem; color: var(--text-dim); text-transform: uppercase;
+            letter-spacing: 1px; margin-top: 0.25rem;
+        }
+
+        .approval-list-item {
+            background: var(--card); border: 1px solid var(--border);
+            border-radius: var(--radius); padding: 1.25rem;
+            margin-bottom: 0.75rem; transition: border-color 0.2s;
+        }
+        .approval-list-item:hover { border-color: var(--gold); }
+        .approval-list-item .ali-top {
+            display: flex; justify-content: space-between; align-items: flex-start;
+            margin-bottom: 0.75rem;
+        }
+        .approval-list-item .ali-top h4 {
+            font-size: 0.9rem; color: white; margin-bottom: 0.2rem;
+        }
+        .approval-list-item .ali-top .ali-amount {
+            font-size: 1.1rem; font-weight: 700; color: var(--gold); white-space: nowrap;
+        }
+        .approval-list-item .ali-meta {
+            display: flex; gap: 1.5rem; flex-wrap: wrap;
+            font-size: 0.78rem; color: var(--text-dim); margin-bottom: 0.75rem;
+        }
+        .approval-list-item .ali-lines {
+            font-size: 0.78rem; color: var(--text-dim);
+            margin-bottom: 0.75rem; font-style: italic;
+        }
+        .approval-list-item .ali-actions {
+            display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;
+        }
+        .approval-list-item .ali-actions .btn-approve {
+            background: var(--emerald); color: white; border: none; border-radius: 6px;
+            padding: 0.45rem 1.25rem; font-family: inherit; font-size: 0.8rem;
+            font-weight: 600; cursor: pointer; transition: all 0.2s;
+        }
+        .approval-list-item .ali-actions .btn-approve:hover { background: #059669; }
+        .approval-list-item .ali-actions .btn-reject {
+            background: var(--rose); color: white; border: none; border-radius: 6px;
+            padding: 0.45rem 1.25rem; font-family: inherit; font-size: 0.8rem;
+            font-weight: 600; cursor: pointer; transition: all 0.2s;
+        }
+        .approval-list-item .ali-actions .btn-reject:hover { background: #e11d48; }
+        .approval-list-item .ali-actions .approval-comment-input {
+            flex: 1; min-width: 200px; padding: 0.4rem 0.75rem;
+            background: var(--surface); color: var(--text); border: 1px solid var(--border);
+            border-radius: 6px; font-family: inherit; font-size: 0.8rem;
+        }
+        .approval-list-item .ali-actions .approval-comment-input:focus { outline: none; border-color: var(--gold); }
+        .approval-list-item .ali-stamp {
+            margin-top: 0.75rem; padding: 0.6rem 0.75rem;
+            border-radius: 6px; font-size: 0.78rem;
+        }
+        .ali-stamp.stamp-approved {
+            background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.25);
+            color: var(--emerald);
+        }
+        .ali-stamp.stamp-rejected {
+            background: rgba(244,63,94,0.1); border: 1px solid rgba(244,63,94,0.25);
+            color: var(--rose);
+        }
+        .admin-filter-bar {
+            display: flex; gap: 0.5rem; margin-bottom: 1.25rem; flex-wrap: wrap;
+        }
+        .admin-filter-btn {
+            padding: 0.4rem 1rem; border: 1px solid var(--border); border-radius: 6px;
+            background: transparent; color: var(--text-dim); font-family: inherit;
+            font-size: 0.78rem; font-weight: 600; cursor: pointer; transition: all 0.2s;
+        }
+        .admin-filter-btn:hover { color: var(--text); background: rgba(255,255,255,0.04); }
+        .admin-filter-btn.active { background: var(--gold); color: var(--navy); border-color: var(--gold); }
 
         /* ─── PRINT PREVIEW ─── */
         .print-frame {
@@ -774,6 +882,7 @@
     <button class="tab-btn" onclick="switchTab('create',this)">✏️ Create Virement</button>
     <button class="tab-btn" onclick="switchTab('requests',this)">📋 Virement Requests</button>
     <button class="tab-btn" onclick="switchTab('preview',this)">🖨️ Print Preview</button>
+    <button class="tab-btn" onclick="switchTab('admin',this)">🛡️ Admin Approvals</button>
     <button class="tab-btn" onclick="window.open('https://stevebarrettsrha-ops.github.io/CESTIS---Cashbook-Dashboard/','_blank')">📒 Cashbook Dashboard</button>
 </div>
 
@@ -908,6 +1017,34 @@
         <p style="font-size:0.75rem;color:var(--text-dim);margin-top:0.5rem;">Each virement request generates a separate form page matching the official C.E.S.T.I.S format.</p>
     </div>
     <div id="printPreviewArea" class="print-frame"></div>
+</div>
+
+<!-- ─── TAB 5: ADMIN APPROVALS ─── -->
+<div id="tab-admin" class="tab-panel">
+    <!-- PIN Gate (shown when admin not verified) -->
+    <div id="adminGate" class="admin-gate">
+        <h3>🛡️ Admin Access Required</h3>
+        <p>Enter the admin PIN to review and approve pending virement requests.</p>
+        <input type="password" id="adminPinInput" class="pin-input" maxlength="6" placeholder="••••" onkeydown="if(event.key==='Enter') verifyAdminPin()">
+        <div id="adminPinError" class="pin-error"></div>
+        <br>
+        <button class="btn-gold" onclick="verifyAdminPin()">Unlock</button>
+    </div>
+    <!-- Approval Dashboard (shown after PIN verified) -->
+    <div id="adminDashboard" style="display:none;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:0.75rem;">
+            <h3 style="color:white;">Admin Approval Dashboard</h3>
+            <button class="btn-ghost" onclick="lockAdminPanel()" style="font-size:0.78rem;">🔒 Lock Panel</button>
+        </div>
+        <div class="approval-stats" id="approvalStats"></div>
+        <div class="admin-filter-bar" id="adminFilterBar">
+            <button class="admin-filter-btn active" onclick="setAdminFilter('pending',this)">Pending</button>
+            <button class="admin-filter-btn" onclick="setAdminFilter('all',this)">All</button>
+            <button class="admin-filter-btn" onclick="setAdminFilter('approved',this)">Approved</button>
+            <button class="admin-filter-btn" onclick="setAdminFilter('rejected',this)">Rejected</button>
+        </div>
+        <div id="approvalList"></div>
+    </div>
 </div>
 
 </div><!-- /main -->
@@ -1223,6 +1360,7 @@ function switchTab(tab, btn){
     btn.classList.add('active');
     if(tab==='preview') renderPrintPreview();
     if(tab==='overview') renderBudgetOverview();
+    if(tab==='admin' && adminUnlocked) renderAdminApprovals();
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -1499,7 +1637,9 @@ function renderRequests(){
     }
     container.innerHTML = quarterRequests.map((r)=>{
         let globalIdx = virementRequests.indexOf(r);
-        let badge = r.status==='Approved' ? '<span class="badge badge-approved">Approved</span>' : '<span class="badge badge-pending">Pending</span>';
+        let badge = r.status==='Approved' ? '<span class="badge badge-approved">Approved</span>'
+            : r.status==='Rejected' ? '<span class="badge badge-rejected">Rejected</span>'
+            : '<span class="badge badge-pending">Pending</span>';
         let summaryLines = r.lines.map(l=>`${l.fromName} → ${l.toName}`).join(', ');
         if(summaryLines.length>80) summaryLines = summaryLines.substring(0,80)+'…';
         return `<div class="virement-list-item" onclick="showDetail(${globalIdx})">
@@ -1544,6 +1684,9 @@ function showDetail(idx){
         ${deficitTable}
         ${anyTable}
         <p style="margin-top:0.75rem;font-size:0.82rem;color:var(--text-dim);font-style:italic;">${r.totalWords}</p>
+        ${r.status !== 'Pending' ? `<div class="ali-stamp ${r.status==='Approved'?'stamp-approved':'stamp-rejected'}" style="margin-top:1rem;">
+            ${r.status==='Approved'?'✓':'✗'} ${r.status} by ${r.approvedBy||'Admin'}${r.approvalDate?' on '+r.approvalDate:''}${r.approvalComment?' — "'+r.approvalComment+'"':''}
+        </div>` : ''}
     `;
     document.getElementById('detailModal').classList.add('show');
 }
@@ -1625,6 +1768,12 @@ function renderPrintPreview(){
                     Total = ${fmt(r.total)}
                 </div>
 
+                ${r.status !== 'Pending' ? `<div style="margin-top:1.5rem;padding:0.75rem 1rem;border:2px solid ${r.status==='Approved'?'#059669':'#e11d48'};border-radius:6px;">
+                    <p style="font-weight:700;color:${r.status==='Approved'?'#059669':'#e11d48'};margin:0;">
+                        ${r.status==='Approved'?'✓ APPROVED':'✗ REJECTED'} by ${r.approvedBy||'Admin'}${r.approvalDate?' — '+r.approvalDate:''}
+                    </p>
+                    ${r.approvalComment?'<p style="font-size:0.85rem;margin:0.25rem 0 0;color:#333;">Comment: '+r.approvalComment+'</p>':''}
+                </div>` : '<div style="margin-top:1.5rem;padding:0.75rem 1rem;border:2px dashed #d97706;border-radius:6px;"><p style="font-weight:600;color:#d97706;margin:0;">⏳ PENDING APPROVAL</p></div>'}
 
             </div>
         </div>`;
@@ -1637,6 +1786,159 @@ function printVirements(){
     document.getElementById('tab-preview').classList.add('active');
     document.getElementById('tab-preview').classList.add('print-active');
     setTimeout(()=>window.print(), 200);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  ADMIN APPROVAL SYSTEM
+// ═══════════════════════════════════════════════════════════
+const ADMIN_PIN = '1234'; // Default admin PIN — change as needed
+let adminUnlocked = false;
+let adminFilter = 'pending';
+
+function verifyAdminPin(){
+    let pin = document.getElementById('adminPinInput').value;
+    let errorEl = document.getElementById('adminPinError');
+    if(pin === ADMIN_PIN){
+        adminUnlocked = true;
+        document.getElementById('adminGate').style.display = 'none';
+        document.getElementById('adminDashboard').style.display = 'block';
+        document.getElementById('adminPinInput').value = '';
+        errorEl.textContent = '';
+        renderAdminApprovals();
+    } else {
+        errorEl.textContent = 'Incorrect PIN. Please try again.';
+        document.getElementById('adminPinInput').value = '';
+        document.getElementById('adminPinInput').focus();
+    }
+}
+
+function lockAdminPanel(){
+    adminUnlocked = false;
+    document.getElementById('adminGate').style.display = 'block';
+    document.getElementById('adminDashboard').style.display = 'none';
+}
+
+function setAdminFilter(filter, btn){
+    adminFilter = filter;
+    document.querySelectorAll('.admin-filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    renderAdminApprovals();
+}
+
+function renderAdminApprovals(){
+    if(!adminUnlocked) return;
+    let quarterRequests = getActiveQuarterRequests();
+
+    // Count stats
+    let pendingCount = quarterRequests.filter(r => r.status === 'Pending').length;
+    let approvedCount = quarterRequests.filter(r => r.status === 'Approved').length;
+    let rejectedCount = quarterRequests.filter(r => r.status === 'Rejected').length;
+
+    document.getElementById('approvalStats').innerHTML = `
+        <div class="approval-stat-card">
+            <div class="stat-num pending-num">${pendingCount}</div>
+            <div class="stat-label">Pending</div>
+        </div>
+        <div class="approval-stat-card">
+            <div class="stat-num approved-num">${approvedCount}</div>
+            <div class="stat-label">Approved</div>
+        </div>
+        <div class="approval-stat-card">
+            <div class="stat-num rejected-num">${rejectedCount}</div>
+            <div class="stat-label">Rejected</div>
+        </div>
+    `;
+
+    // Filter
+    let filtered = quarterRequests;
+    if(adminFilter === 'pending') filtered = quarterRequests.filter(r => r.status === 'Pending');
+    else if(adminFilter === 'approved') filtered = quarterRequests.filter(r => r.status === 'Approved');
+    else if(adminFilter === 'rejected') filtered = quarterRequests.filter(r => r.status === 'Rejected');
+
+    let container = document.getElementById('approvalList');
+    if(filtered.length === 0){
+        let emptyMsg = adminFilter === 'pending' ? 'No pending virement requests for this quarter.'
+            : adminFilter === 'approved' ? 'No approved requests for this quarter.'
+            : adminFilter === 'rejected' ? 'No rejected requests for this quarter.'
+            : 'No virement requests for this quarter.';
+        container.innerHTML = `<div style="text-align:center;padding:3rem;color:var(--text-dim);">${emptyMsg}</div>`;
+        return;
+    }
+
+    container.innerHTML = filtered.map(r => {
+        let globalIdx = virementRequests.indexOf(r);
+        let badge = r.status === 'Approved' ? '<span class="badge badge-approved">Approved</span>'
+            : r.status === 'Rejected' ? '<span class="badge badge-rejected">Rejected</span>'
+            : '<span class="badge badge-pending">Pending</span>';
+        let summaryLines = r.lines.map(l => `${l.fromName} → ${l.toName}`).join(', ');
+        if(summaryLines.length > 100) summaryLines = summaryLines.substring(0,100) + '…';
+
+        let actionsHtml = '';
+        if(r.status === 'Pending'){
+            actionsHtml = `
+                <div class="ali-actions">
+                    <input type="text" class="approval-comment-input" id="approvalComment_${globalIdx}" placeholder="Comment (optional)">
+                    <button class="btn-approve" onclick="approveVirement(${globalIdx})">✓ Approve</button>
+                    <button class="btn-reject" onclick="rejectVirement(${globalIdx})">✗ Reject</button>
+                </div>`;
+        } else {
+            let stampClass = r.status === 'Approved' ? 'stamp-approved' : 'stamp-rejected';
+            let stampIcon = r.status === 'Approved' ? '✓' : '✗';
+            let stampText = `${stampIcon} ${r.status} by ${r.approvedBy || 'Admin'}`;
+            if(r.approvalDate) stampText += ` on ${r.approvalDate}`;
+            if(r.approvalComment) stampText += ` — "${r.approvalComment}"`;
+            actionsHtml = `<div class="ali-stamp ${stampClass}">${stampText}</div>`;
+        }
+
+        return `<div class="approval-list-item">
+            <div class="ali-top">
+                <div>
+                    <h4>Virement #${globalIdx+1} — ${r.date} ${badge}</h4>
+                </div>
+                <div class="ali-amount">${fmt(r.total)}</div>
+            </div>
+            <div class="ali-meta">
+                <span>Project: ${r.project}</span>
+                <span>Period: ${r.period}</span>
+                <span>Requested by: ${r.requestedBy || '—'}</span>
+            </div>
+            <div class="ali-lines">${summaryLines}</div>
+            ${actionsHtml}
+        </div>`;
+    }).join('');
+}
+
+function approveVirement(idx){
+    let r = virementRequests[idx];
+    if(!r || r.status !== 'Pending') return;
+    let comment = document.getElementById('approvalComment_' + idx);
+    r.status = 'Approved';
+    r.approvedBy = 'Admin';
+    r.approvalDate = new Date().toISOString().split('T')[0];
+    r.approvalComment = comment ? comment.value.trim() : '';
+    saveAllData();
+    renderAdminApprovals();
+    renderRequests();
+}
+
+function rejectVirement(idx){
+    let r = virementRequests[idx];
+    if(!r || r.status !== 'Pending') return;
+    let comment = document.getElementById('approvalComment_' + idx);
+    let commentText = comment ? comment.value.trim() : '';
+    if(!commentText){
+        if(!confirm('Reject this virement without a comment? It is recommended to provide a reason.')){
+            if(comment) comment.focus();
+            return;
+        }
+    }
+    r.status = 'Rejected';
+    r.approvedBy = 'Admin';
+    r.approvalDate = new Date().toISOString().split('T')[0];
+    r.approvalComment = commentText;
+    saveAllData();
+    renderAdminApprovals();
+    renderRequests();
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -1675,6 +1977,7 @@ function switchVirementQuarter(q) {
     renderBudgetOverview();
     renderRequests();
     renderPrintPreview();
+    if(adminUnlocked) renderAdminApprovals();
     // Refresh virement form dropdowns
     document.getElementById('virementLines').innerHTML = '';
     addVirementLine();
