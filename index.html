@@ -855,12 +855,21 @@
     </div>
 
     <div class="form-section">
-        <h3>Fund Transfer Lines</h3>
+        <h3>Fund Transfer Lines <span style="font-size:0.7rem;color:var(--text-dim);font-weight:400;">(Surplus → Deficit)</span></h3>
         <p style="font-size:0.8rem;color:var(--text-dim);margin-bottom:1rem;">
             Add one or more transfers. Each line moves funds FROM a surplus line item TO a deficit line item.
         </p>
         <div id="virementLines"></div>
         <button class="btn-emerald" onclick="addVirementLine()" style="margin-top:0.75rem;">+ Add Transfer Line</button>
+    </div>
+
+    <div class="form-section">
+        <h3>Vire to Any Line <span style="font-size:0.7rem;color:var(--gold);font-weight:400;">(Surplus → Any Line Item)</span></h3>
+        <p style="font-size:0.8rem;color:var(--text-dim);margin-bottom:1rem;">
+            Transfer funds FROM a surplus line item TO any line item — including those that are not in deficit.
+        </p>
+        <div id="virementAnyLines"></div>
+        <button class="btn-emerald" onclick="addAnyLineLine()" style="margin-top:0.75rem;">+ Add Any-Line Transfer</button>
     </div>
 
     <div class="form-section" style="display:flex;justify-content:space-between;align-items:center;">
@@ -1340,6 +1349,14 @@ function getLineOptions(type){
     }).join('');
 }
 
+function getAllLineOptions(){
+    return '<option value="">— Select —</option>' + budgetData.map(i=>{
+        let v = i.allocated - i.actual;
+        let status = v>0 ? `Surplus: ${fmt(v)}` : v<0 ? `Deficit: ${fmt(Math.abs(v))}` : 'Balanced';
+        return `<option value="${i.id}">${i.name} (${status})</option>`;
+    }).join('');
+}
+
 function addVirementLine(){
     let container = document.getElementById('virementLines');
     let div = document.createElement('div');
@@ -1362,9 +1379,31 @@ function addVirementLine(){
     container.appendChild(div);
 }
 
+function addAnyLineLine(){
+    let container = document.getElementById('virementAnyLines');
+    let div = document.createElement('div');
+    div.className = 'virement-entry';
+    div.innerHTML = `
+        <div class="field">
+            <label>From Line Item</label>
+            <select class="vl-from" onchange="updateVirementTotal()">${getLineOptions('from')}</select>
+        </div>
+        <div class="field">
+            <label>Amount ($)</label>
+            <input type="number" step="0.01" min="0" class="vl-amount" onchange="updateVirementTotal()" oninput="updateVirementTotal()" placeholder="0.00">
+        </div>
+        <div class="field">
+            <label>To Line Item</label>
+            <select class="vl-to" onchange="updateVirementTotal()">${getAllLineOptions()}</select>
+        </div>
+        <button class="remove-btn" onclick="this.parentElement.remove();updateVirementTotal();">✕</button>
+    `;
+    container.appendChild(div);
+}
+
 function updateVirementTotal(){
     let total = 0;
-    document.querySelectorAll('.virement-entry').forEach(entry=>{
+    document.querySelectorAll('#virementLines .virement-entry, #virementAnyLines .virement-entry').forEach(entry=>{
         let amt = parseFloat(entry.querySelector('.vl-amount').value) || 0;
         total += amt;
     });
@@ -1373,6 +1412,7 @@ function updateVirementTotal(){
 
 function clearVirementForm(){
     document.getElementById('virementLines').innerHTML = '';
+    document.getElementById('virementAnyLines').innerHTML = '';
     addVirementLine();
     updateVirementTotal();
 }
@@ -1380,10 +1420,12 @@ function clearVirementForm(){
 function submitVirement(){
     let lines = [];
     let valid = true;
-    document.querySelectorAll('.virement-entry').forEach(entry=>{
+    // Collect deficit transfer lines
+    document.querySelectorAll('#virementLines .virement-entry').forEach(entry=>{
         let from = entry.querySelector('.vl-from').value;
         let to = entry.querySelector('.vl-to').value;
         let amount = parseFloat(entry.querySelector('.vl-amount').value) || 0;
+        if(!from && !to && amount<=0) return; // skip completely empty rows
         if(!from || !to || amount<=0){ valid = false; return; }
         lines.push({
             fromId: from,
@@ -1393,7 +1435,31 @@ function submitVirement(){
             amount: amount
         });
     });
-    if(!valid || lines.length===0){
+    // Collect any-line transfer lines
+    document.querySelectorAll('#virementAnyLines .virement-entry').forEach(entry=>{
+        let from = entry.querySelector('.vl-from').value;
+        let to = entry.querySelector('.vl-to').value;
+        let amount = parseFloat(entry.querySelector('.vl-amount').value) || 0;
+        if(!from && !to && amount<=0) return; // skip completely empty rows
+        if(!from || !to || amount<=0){ valid = false; return; }
+        lines.push({
+            fromId: from,
+            fromName: budgetData.find(b=>b.id===from).name,
+            toId: to,
+            toName: budgetData.find(b=>b.id===to).name,
+            amount: amount,
+            anyLine: true
+        });
+    });
+    // Allow submission if at least one section has entries (skip empty sections)
+    let hasDeficitEntries = document.querySelectorAll('#virementLines .virement-entry').length > 0;
+    let hasAnyLineEntries = document.querySelectorAll('#virementAnyLines .virement-entry').length > 0;
+    // Only validate sections that have entries
+    if(lines.length===0){
+        alert('Please add at least one transfer line and fill in all fields.');
+        return;
+    }
+    if(!valid){
         alert('Please fill in all fields. Each line needs a From item, To item, and positive amount.');
         return;
     }
@@ -1450,7 +1516,22 @@ function showDetail(idx){
     currentModalIdx = idx;
     let r = virementRequests[idx];
     document.getElementById('modalTitle').textContent = 'Virement #'+(idx+1)+' — '+r.date;
-    let linesHtml = r.lines.map(l=>`<tr><td>${l.fromName}</td><td class="num">${fmt(l.amount)}</td><td>${l.toName}</td></tr>`).join('');
+    let deficitLines = r.lines.filter(l=>!l.anyLine);
+    let anyLines = r.lines.filter(l=>l.anyLine);
+    let deficitHtml = deficitLines.map(l=>`<tr><td>${l.fromName}</td><td class="num">${fmt(l.amount)}</td><td>${l.toName}</td></tr>`).join('');
+    let anyHtml = anyLines.map(l=>`<tr><td>${l.fromName}</td><td class="num">${fmt(l.amount)}</td><td>${l.toName}</td></tr>`).join('');
+    let deficitTable = deficitLines.length > 0 ? `
+        <h4 style="font-size:0.8rem;color:var(--text-dim);margin:0.75rem 0 0.5rem;">Surplus → Deficit Transfers</h4>
+        <table>
+            <thead><tr><th>From Line Item</th><th class="num">Amount</th><th>To Line Item</th></tr></thead>
+            <tbody>${deficitHtml}</tbody>
+        </table>` : '';
+    let anyTable = anyLines.length > 0 ? `
+        <h4 style="font-size:0.8rem;color:var(--gold);margin:0.75rem 0 0.5rem;">Transfers to Any Line</h4>
+        <table>
+            <thead><tr><th>From Line Item</th><th class="num">Amount</th><th>To Line Item</th></tr></thead>
+            <tbody>${anyHtml}</tbody>
+        </table>` : '';
     document.getElementById('modalBody').innerHTML = `
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;">
             <div><span style="color:var(--text-dim);font-size:0.75rem;">Project</span><br>${r.project}</div>
@@ -1458,10 +1539,8 @@ function showDetail(idx){
             <div><span style="color:var(--text-dim);font-size:0.75rem;">Requested By</span><br>${r.requestedBy||'—'}</div>
             <div><span style="color:var(--text-dim);font-size:0.75rem;">Total</span><br><strong style="color:var(--gold);font-size:1.2rem;">${fmt(r.total)}</strong></div>
         </div>
-        <table>
-            <thead><tr><th>From Line Item</th><th class="num">Amount</th><th>To Line Item</th></tr></thead>
-            <tbody>${linesHtml}</tbody>
-        </table>
+        ${deficitTable}
+        ${anyTable}
         <p style="margin-top:0.75rem;font-size:0.82rem;color:var(--text-dim);font-style:italic;">${r.totalWords}</p>
     `;
     document.getElementById('detailModal').classList.add('show');
@@ -1485,9 +1564,42 @@ function renderPrintPreview(){
         return;
     }
     area.innerHTML = quarterRequests.map((r,idx)=>{
-        let tableRows = r.lines.map(l=>`
+        let deficitLines = r.lines.filter(l=>!l.anyLine);
+        let anyLines = r.lines.filter(l=>l.anyLine);
+        let deficitRows = deficitLines.map(l=>`
             <tr><td>${l.fromName}</td><td style="text-align:right;">${fmt(l.amount)}</td><td>${l.toName}</td></tr>
         `).join('');
+        let anyLineRows = anyLines.map(l=>`
+            <tr><td>${l.fromName}</td><td style="text-align:right;">${fmt(l.amount)}</td><td>${l.toName}</td></tr>
+        `).join('');
+        let deficitSection = deficitLines.length > 0 ? `
+                <p style="margin-top:0.75rem;font-weight:600;">Funds Vired will be re-allocated as follows:</p>
+                <table class="print-table">
+                    <thead>
+                        <tr>
+                            <th>From Line Item(s)</th>
+                            <th style="text-align:right;">Amount</th>
+                            <th>To Line Item(s) — Deficit</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${deficitRows}
+                    </tbody>
+                </table>` : '';
+        let anyLineSection = anyLines.length > 0 ? `
+                <p style="margin-top:1rem;font-weight:600;">Funds Vired to Other Line Items:</p>
+                <table class="print-table">
+                    <thead>
+                        <tr>
+                            <th>From Line Item(s)</th>
+                            <th style="text-align:right;">Amount</th>
+                            <th>To Line Item(s)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${anyLineRows}
+                    </tbody>
+                </table>` : '';
         return `
         <div class="print-page">
             <div class="print-header">
@@ -1500,20 +1612,8 @@ function renderPrintPreview(){
                 <p>We are requesting approval to vire funds allocated in the <strong>${r.period}</strong> subvention.</p>
                 <p>We are seeking approval to move a total of: <span class="amount-highlight">${fmt(r.total)} (${r.totalWords})</span></p>
                 <p>as per the categories stated below.</p>
-                <p style="margin-top:0.75rem;font-weight:600;">Funds Vired will be re-allocated as follows:</p>
-
-                <table class="print-table">
-                    <thead>
-                        <tr>
-                            <th>From Line Item(s)</th>
-                            <th style="text-align:right;">Amount</th>
-                            <th>To Line Item(s)</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${tableRows}
-                    </tbody>
-                </table>
+                ${deficitSection}
+                ${anyLineSection}
 
                 <div class="print-total-row">
                     Total = ${fmt(r.total)}
