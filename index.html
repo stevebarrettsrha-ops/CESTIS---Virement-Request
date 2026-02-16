@@ -861,6 +861,10 @@
         </p>
         <div id="virementLines"></div>
         <button class="btn-emerald" onclick="addVirementLine()" style="margin-top:0.75rem;">+ Add Transfer Line</button>
+        <div class="field" style="margin-top:1rem;">
+            <label>Reason / Comment</label>
+            <textarea id="deficitComment" rows="2" placeholder="Explain why these funds are being transferred..." style="width:100%;resize:vertical;"></textarea>
+        </div>
     </div>
 
     <div class="form-section">
@@ -870,6 +874,10 @@
         </p>
         <div id="virementAnyLines"></div>
         <button class="btn-emerald" onclick="addAnyLineLine()" style="margin-top:0.75rem;">+ Add Any-Line Transfer</button>
+        <div class="field" style="margin-top:1rem;">
+            <label>Reason / Comment</label>
+            <textarea id="anyLineComment" rows="2" placeholder="Explain why these funds are being transferred..." style="width:100%;resize:vertical;"></textarea>
+        </div>
     </div>
 
     <div class="form-section" style="display:flex;justify-content:space-between;align-items:center;">
@@ -1413,56 +1421,46 @@ function updateVirementTotal(){
 function clearVirementForm(){
     document.getElementById('virementLines').innerHTML = '';
     document.getElementById('virementAnyLines').innerHTML = '';
+    document.getElementById('deficitComment').value = '';
+    document.getElementById('anyLineComment').value = '';
     addVirementLine();
     updateVirementTotal();
 }
 
 function submitVirement(){
     let lines = [];
-    let valid = true;
-    // Collect deficit transfer lines
-    document.querySelectorAll('#virementLines .virement-entry').forEach(entry=>{
-        let from = entry.querySelector('.vl-from').value;
-        let to = entry.querySelector('.vl-to').value;
-        let amount = parseFloat(entry.querySelector('.vl-amount').value) || 0;
-        if(!from && !to && amount<=0) return; // skip completely empty rows
-        if(!from || !to || amount<=0){ valid = false; return; }
-        lines.push({
-            fromId: from,
-            fromName: budgetData.find(b=>b.id===from).name,
-            toId: to,
-            toName: budgetData.find(b=>b.id===to).name,
-            amount: amount
+    let hasIncomplete = false;
+    function collectEntries(selector, extraProps){
+        document.querySelectorAll(selector).forEach(entry=>{
+            let from = entry.querySelector('.vl-from').value;
+            let to = entry.querySelector('.vl-to').value;
+            let amount = parseFloat(entry.querySelector('.vl-amount').value) || 0;
+            // Skip completely empty/untouched rows
+            if(!from && !to && amount<=0) return;
+            // Partially filled row — flag as incomplete
+            if(!from || !to || amount<=0){ hasIncomplete = true; return; }
+            lines.push(Object.assign({
+                fromId: from,
+                fromName: budgetData.find(b=>b.id===from).name,
+                toId: to,
+                toName: budgetData.find(b=>b.id===to).name,
+                amount: amount
+            }, extraProps || {}));
         });
-    });
-    // Collect any-line transfer lines
-    document.querySelectorAll('#virementAnyLines .virement-entry').forEach(entry=>{
-        let from = entry.querySelector('.vl-from').value;
-        let to = entry.querySelector('.vl-to').value;
-        let amount = parseFloat(entry.querySelector('.vl-amount').value) || 0;
-        if(!from && !to && amount<=0) return; // skip completely empty rows
-        if(!from || !to || amount<=0){ valid = false; return; }
-        lines.push({
-            fromId: from,
-            fromName: budgetData.find(b=>b.id===from).name,
-            toId: to,
-            toName: budgetData.find(b=>b.id===to).name,
-            amount: amount,
-            anyLine: true
-        });
-    });
-    // Allow submission if at least one section has entries (skip empty sections)
-    let hasDeficitEntries = document.querySelectorAll('#virementLines .virement-entry').length > 0;
-    let hasAnyLineEntries = document.querySelectorAll('#virementAnyLines .virement-entry').length > 0;
-    // Only validate sections that have entries
+    }
+    collectEntries('#virementLines .virement-entry', {});
+    collectEntries('#virementAnyLines .virement-entry', { anyLine: true });
+    // Check for partially filled rows first (more specific error)
+    if(hasIncomplete){
+        alert('Some transfer lines are incomplete. Each line needs a From item, To item, and a positive amount. Remove or complete any partial rows.');
+        return;
+    }
     if(lines.length===0){
         alert('Please add at least one transfer line and fill in all fields.');
         return;
     }
-    if(!valid){
-        alert('Please fill in all fields. Each line needs a From item, To item, and positive amount.');
-        return;
-    }
+    let deficitComment = document.getElementById('deficitComment').value.trim();
+    let anyLineComment = document.getElementById('anyLineComment').value.trim();
     let totalAmt = lines.reduce((s,l)=>s+l.amount, 0);
     let request = {
         id: Date.now(),
@@ -1476,6 +1474,8 @@ function submitVirement(){
         total: totalAmt,
         totalWords: numberToWords(totalAmt),
         lines: lines,
+        deficitComment: deficitComment,
+        anyLineComment: anyLineComment,
         status: 'Pending'
     };
     virementRequests.push(request);
@@ -1520,18 +1520,20 @@ function showDetail(idx){
     let anyLines = r.lines.filter(l=>l.anyLine);
     let deficitHtml = deficitLines.map(l=>`<tr><td>${l.fromName}</td><td class="num">${fmt(l.amount)}</td><td>${l.toName}</td></tr>`).join('');
     let anyHtml = anyLines.map(l=>`<tr><td>${l.fromName}</td><td class="num">${fmt(l.amount)}</td><td>${l.toName}</td></tr>`).join('');
+    let deficitCommentHtml = r.deficitComment ? `<p style="font-size:0.8rem;color:var(--text-dim);margin-top:0.4rem;font-style:italic;">Reason: ${r.deficitComment}</p>` : '';
+    let anyCommentHtml = r.anyLineComment ? `<p style="font-size:0.8rem;color:var(--text-dim);margin-top:0.4rem;font-style:italic;">Reason: ${r.anyLineComment}</p>` : '';
     let deficitTable = deficitLines.length > 0 ? `
         <h4 style="font-size:0.8rem;color:var(--text-dim);margin:0.75rem 0 0.5rem;">Surplus → Deficit Transfers</h4>
         <table>
             <thead><tr><th>From Line Item</th><th class="num">Amount</th><th>To Line Item</th></tr></thead>
             <tbody>${deficitHtml}</tbody>
-        </table>` : '';
+        </table>${deficitCommentHtml}` : '';
     let anyTable = anyLines.length > 0 ? `
         <h4 style="font-size:0.8rem;color:var(--gold);margin:0.75rem 0 0.5rem;">Transfers to Any Line</h4>
         <table>
             <thead><tr><th>From Line Item</th><th class="num">Amount</th><th>To Line Item</th></tr></thead>
             <tbody>${anyHtml}</tbody>
-        </table>` : '';
+        </table>${anyCommentHtml}` : '';
     document.getElementById('modalBody').innerHTML = `
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;">
             <div><span style="color:var(--text-dim);font-size:0.75rem;">Project</span><br>${r.project}</div>
@@ -1572,6 +1574,8 @@ function renderPrintPreview(){
         let anyLineRows = anyLines.map(l=>`
             <tr><td>${l.fromName}</td><td style="text-align:right;">${fmt(l.amount)}</td><td>${l.toName}</td></tr>
         `).join('');
+        let deficitCommentPrint = r.deficitComment ? `<p style="margin-top:0.5rem;font-style:italic;font-size:0.85em;"><strong>Reason:</strong> ${r.deficitComment}</p>` : '';
+        let anyCommentPrint = r.anyLineComment ? `<p style="margin-top:0.5rem;font-style:italic;font-size:0.85em;"><strong>Reason:</strong> ${r.anyLineComment}</p>` : '';
         let deficitSection = deficitLines.length > 0 ? `
                 <p style="margin-top:0.75rem;font-weight:600;">Funds Vired will be re-allocated as follows:</p>
                 <table class="print-table">
@@ -1585,7 +1589,8 @@ function renderPrintPreview(){
                     <tbody>
                         ${deficitRows}
                     </tbody>
-                </table>` : '';
+                </table>
+                ${deficitCommentPrint}` : '';
         let anyLineSection = anyLines.length > 0 ? `
                 <p style="margin-top:1rem;font-weight:600;">Funds Vired to Other Line Items:</p>
                 <table class="print-table">
@@ -1599,7 +1604,8 @@ function renderPrintPreview(){
                     <tbody>
                         ${anyLineRows}
                     </tbody>
-                </table>` : '';
+                </table>
+                ${anyCommentPrint}` : '';
         return `
         <div class="print-page">
             <div class="print-header">
