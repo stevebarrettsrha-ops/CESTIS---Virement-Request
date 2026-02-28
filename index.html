@@ -403,12 +403,21 @@
             border-top: 2px dashed #ccc;
         }
         .print-header {
-            text-align: center; margin-bottom: 1.5rem;
+            display: flex; align-items: flex-start; margin-bottom: 1.5rem;
             border-bottom: 3px solid #000; padding-bottom: 1rem;
         }
-        .print-header h1 { font-size: 1.05rem; font-weight:bold; margin-bottom:0.15rem; color: #000; font-family: 'DM Sans', Arial, sans-serif; }
-        .print-header h2 { font-size: 0.9rem; font-weight:normal; color: #333; }
-        .print-header h3 { font-size: 1.1rem; font-weight:bold; margin-top:0.5rem; letter-spacing: 1px; color: #000; }
+        .print-header-date {
+            flex-shrink: 0; text-align: left; padding-top: 0.4rem; min-width: 100px;
+        }
+        .print-header-date .date-label { font-size: 0.72rem; font-weight: 600; color: #555; text-transform: uppercase; margin-bottom: 0.15rem; }
+        .print-header-date .date-value { font-size: 0.88rem; font-weight: 700; color: #000; }
+        .print-header-title {
+            flex: 1; text-align: center;
+        }
+        .print-header-title h1 { font-size: 1.05rem; font-weight:bold; margin-bottom:0.15rem; color: #000; font-family: 'DM Sans', Arial, sans-serif; }
+        .print-header-title h2 { font-size: 0.9rem; font-weight:normal; color: #333; }
+        .print-header-title h3 { font-size: 1.1rem; font-weight:bold; margin-top:0.5rem; letter-spacing: 1px; color: #000; }
+        .print-header-spacer { flex-shrink: 0; min-width: 100px; }
         .print-body p { font-size:0.88rem; line-height:1.7; color:#222; margin-bottom:0.5rem; }
         .print-body .amount-highlight {
             font-weight:700; color:#000;
@@ -949,6 +958,10 @@
         <h3>Virement Request Details</h3>
         <div class="form-grid">
             <div class="field">
+                <label>Date</label>
+                <input type="date" id="vDate">
+            </div>
+            <div class="field">
                 <label>Project Name</label>
                 <input type="text" id="vProjectName" value="Community Educational and Skills Training Institute and Services Limited (Hazard Skills Training Centre)">
             </div>
@@ -1345,6 +1358,8 @@ document.addEventListener('DOMContentLoaded', function(){
     renderRequests();
     renderPrintPreview();
     addVirementLine();
+    // Set default date to today
+    document.getElementById('vDate').value = new Date().toISOString().split('T')[0];
     // Initialize cloud sync
     initializeCloudSync();
     setTimeout(() => { initGoogleAuth(); }, 500);
@@ -1567,6 +1582,7 @@ function clearVirementForm(){
     document.getElementById('virementAnyLines').innerHTML = '';
     document.getElementById('deficitComment').value = '';
     document.getElementById('anyLineComment').value = '';
+    document.getElementById('vDate').value = new Date().toISOString().split('T')[0];
     addVirementLine();
     updateVirementTotal();
     // Clear edit mode if active
@@ -1615,6 +1631,7 @@ function submitVirement(){
     if (editingVirementIdx >= 0 && editingVirementIdx < virementRequests.length) {
         // Update existing virement
         let existing = virementRequests[editingVirementIdx];
+        existing.date = document.getElementById('vDate').value || existing.date;
         existing.project = document.getElementById('vProjectName').value;
         existing.period = document.getElementById('vPeriod').value;
         existing.requestedBy = document.getElementById('vRequestedBy').value;
@@ -1638,7 +1655,7 @@ function submitVirement(){
         // Create new virement
         let request = {
             id: Date.now(),
-            date: new Date().toISOString().split('T')[0],
+            date: document.getElementById('vDate').value || new Date().toISOString().split('T')[0],
             fy: virementActiveFY,
             quarter: virementActiveQ,
             project: document.getElementById('vProjectName').value,
@@ -1760,6 +1777,7 @@ function editVirement(idx) {
     }
 
     // Populate form fields
+    document.getElementById('vDate').value = r.date || new Date().toISOString().split('T')[0];
     document.getElementById('vProjectName').value = r.project || '';
     document.getElementById('vPeriod').value = r.period || '';
     document.getElementById('vRequestedBy').value = r.requestedBy || '';
@@ -1871,12 +1889,20 @@ function renderPrintPreview(){
                     </tbody>
                 </table>
                 ${anyCommentPrint}` : '';
+        const displayDate = r.date ? new Date(r.date + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
         return `
         <div class="print-page">
             <div class="print-header">
-                <h1>COMMUNITY EDUCATIONAL AND SKILLS TRAINING INSTITUTE AND SERVICES LIMITED</h1>
-                <h2>C.E.S.T.I.S</h2>
-                <h3>REQUEST FOR VIREMENT OF FUNDS</h3>
+                <div class="print-header-date">
+                    <div class="date-label">Date</div>
+                    <div class="date-value">${displayDate}</div>
+                </div>
+                <div class="print-header-title">
+                    <h1>COMMUNITY EDUCATIONAL AND SKILLS TRAINING INSTITUTE AND SERVICES LIMITED</h1>
+                    <h2>C.E.S.T.I.S</h2>
+                    <h3>REQUEST FOR VIREMENT OF FUNDS</h3>
+                </div>
+                <div class="print-header-spacer"></div>
             </div>
             <div class="print-body">
                 <p><strong>Project:</strong> ${r.project}</p>
