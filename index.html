@@ -941,6 +941,10 @@
 
 <!-- ─── TAB 2: CREATE VIREMENT ─── -->
 <div id="tab-create" class="tab-panel">
+    <div id="editModeBanner" style="display:none;padding:0.85rem 1.25rem;margin-bottom:1rem;background:rgba(212,168,67,0.1);border:1px solid rgba(212,168,67,0.3);border-radius:8px;align-items:center;justify-content:space-between;">
+        <span style="color:var(--gold);font-weight:600;font-size:0.88rem;">✏️ Editing Virement #<span id="editingVirementNum"></span></span>
+        <button class="btn-ghost" onclick="cancelEdit()" style="font-size:0.78rem;">Cancel Edit</button>
+    </div>
     <div class="form-section">
         <h3>Virement Request Details</h3>
         <div class="form-grid">
@@ -996,7 +1000,7 @@
         </div>
         <div style="display:flex;gap:0.5rem;">
             <button class="btn-ghost" onclick="clearVirementForm()">Clear</button>
-            <button class="btn-gold" onclick="submitVirement()">Submit Virement Request</button>
+            <button class="btn-gold" id="submitVirementBtn" onclick="submitVirement()">Submit Virement Request</button>
         </div>
     </div>
 </div>
@@ -1058,6 +1062,7 @@
         </div>
         <div id="modalBody"></div>
         <div style="display:flex;gap:0.5rem;justify-content:flex-end;margin-top:1.5rem;">
+            <button class="btn-gold" id="modalEditBtn" onclick="editVirement(currentModalIdx)">✏️ Edit</button>
             <button class="btn-rose" id="modalDeleteBtn" onclick="deleteCurrentVirement()">🗑 Delete</button>
             <button class="btn-ghost" onclick="closeModal()">Close</button>
         </div>
@@ -1190,6 +1195,7 @@ let budgetData = Object.values(CASHBOOK_CATEGORY_MAP).map(m => ({
 
 let virementRequests = [];
 let currentModalIdx = -1;
+let editingVirementIdx = -1; // -1 means not editing; >= 0 means editing that index
 
 // ==================== CLOUD CONNECTIVITY NOTIFICATIONS ====================
 let cloudNotifyTimer = null;
@@ -1563,6 +1569,12 @@ function clearVirementForm(){
     document.getElementById('anyLineComment').value = '';
     addVirementLine();
     updateVirementTotal();
+    // Clear edit mode if active
+    if (editingVirementIdx >= 0) {
+        editingVirementIdx = -1;
+        document.getElementById('editModeBanner').style.display = 'none';
+        document.getElementById('submitVirementBtn').textContent = 'Submit Virement Request';
+    }
 }
 
 function submitVirement(){
@@ -1600,28 +1612,53 @@ function submitVirement(){
     let deficitComment = document.getElementById('deficitComment').value.trim();
     let anyLineComment = document.getElementById('anyLineComment').value.trim();
     let totalAmt = lines.reduce((s,l)=>s+l.amount, 0);
-    let request = {
-        id: Date.now(),
-        date: new Date().toISOString().split('T')[0],
-        fy: virementActiveFY,
-        quarter: virementActiveQ,
-        project: document.getElementById('vProjectName').value,
-        period: document.getElementById('vPeriod').value,
-        requestedBy: document.getElementById('vRequestedBy').value,
-        position: document.getElementById('vPosition').value,
-        total: totalAmt,
-        totalWords: numberToWords(totalAmt),
-        lines: lines,
-        deficitComment: deficitComment,
-        anyLineComment: anyLineComment,
-        status: 'Pending'
-    };
-    virementRequests.push(request);
-    saveAllData();
-    clearVirementForm();
-    renderRequests();
-    renderBudgetOverview();
-    alert('Virement request #' + virementRequests.length + ' submitted successfully!');
+    if (editingVirementIdx >= 0 && editingVirementIdx < virementRequests.length) {
+        // Update existing virement
+        let existing = virementRequests[editingVirementIdx];
+        existing.project = document.getElementById('vProjectName').value;
+        existing.period = document.getElementById('vPeriod').value;
+        existing.requestedBy = document.getElementById('vRequestedBy').value;
+        existing.position = document.getElementById('vPosition').value;
+        existing.total = totalAmt;
+        existing.totalWords = numberToWords(totalAmt);
+        existing.lines = lines;
+        existing.deficitComment = deficitComment;
+        existing.anyLineComment = anyLineComment;
+        let updatedIdx = editingVirementIdx;
+        editingVirementIdx = -1;
+        document.getElementById('editModeBanner').style.display = 'none';
+        document.getElementById('submitVirementBtn').textContent = 'Submit Virement Request';
+        saveAllData();
+        clearVirementForm();
+        renderRequests();
+        renderBudgetOverview();
+        if (adminUnlocked) renderAdminApprovals();
+        alert('Virement request #' + (updatedIdx + 1) + ' updated successfully!');
+    } else {
+        // Create new virement
+        let request = {
+            id: Date.now(),
+            date: new Date().toISOString().split('T')[0],
+            fy: virementActiveFY,
+            quarter: virementActiveQ,
+            project: document.getElementById('vProjectName').value,
+            period: document.getElementById('vPeriod').value,
+            requestedBy: document.getElementById('vRequestedBy').value,
+            position: document.getElementById('vPosition').value,
+            total: totalAmt,
+            totalWords: numberToWords(totalAmt),
+            lines: lines,
+            deficitComment: deficitComment,
+            anyLineComment: anyLineComment,
+            status: 'Pending'
+        };
+        virementRequests.push(request);
+        saveAllData();
+        clearVirementForm();
+        renderRequests();
+        renderBudgetOverview();
+        alert('Virement request #' + virementRequests.length + ' submitted successfully!');
+    }
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -1696,6 +1733,91 @@ function deleteCurrentVirement(){
         virementRequests.splice(currentModalIdx,1);
         saveAllData(); renderRequests(); renderBudgetOverview(); closeModal();
     }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  EDIT VIREMENT
+// ═══════════════════════════════════════════════════════════
+function editVirement(idx) {
+    if (idx < 0 || idx >= virementRequests.length) return;
+    const r = virementRequests[idx];
+    editingVirementIdx = idx;
+    closeModal();
+
+    // Switch to the correct FY and quarter for this virement
+    const rFY = r.fy || virementActiveFY;
+    const rQ = r.quarter || virementActiveQ;
+    if (rFY !== virementActiveFY || rQ !== virementActiveQ) {
+        virementActiveFY = rFY;
+        virementActiveQ = rQ;
+        document.querySelectorAll('.quarter-tab-btn').forEach((btn, i) => {
+            btn.classList.toggle('active', i + 1 === rQ);
+        });
+        loadBudgetForQuarter();
+        updateVirementPeriod();
+        updateQuarterTabIndicators();
+        renderBudgetOverview();
+    }
+
+    // Populate form fields
+    document.getElementById('vProjectName').value = r.project || '';
+    document.getElementById('vPeriod').value = r.period || '';
+    document.getElementById('vRequestedBy').value = r.requestedBy || '';
+    document.getElementById('vPosition').value = r.position || '';
+    document.getElementById('deficitComment').value = r.deficitComment || '';
+    document.getElementById('anyLineComment').value = r.anyLineComment || '';
+
+    // Clear existing lines
+    document.getElementById('virementLines').innerHTML = '';
+    document.getElementById('virementAnyLines').innerHTML = '';
+
+    // Populate deficit transfer lines
+    const deficitLines = r.lines.filter(l => !l.anyLine);
+    const anyLines = r.lines.filter(l => l.anyLine);
+
+    deficitLines.forEach(line => {
+        addVirementLine();
+        const entries = document.querySelectorAll('#virementLines .virement-entry');
+        const entry = entries[entries.length - 1];
+        entry.querySelector('.vl-from').value = line.fromId;
+        entry.querySelector('.vl-amount').value = line.amount;
+        entry.querySelector('.vl-to').value = line.toId;
+    });
+
+    // Populate any-line transfer lines
+    anyLines.forEach(line => {
+        addAnyLineLine();
+        const entries = document.querySelectorAll('#virementAnyLines .virement-entry');
+        const entry = entries[entries.length - 1];
+        entry.querySelector('.vl-from').value = line.fromId;
+        entry.querySelector('.vl-amount').value = line.amount;
+        entry.querySelector('.vl-to').value = line.toId;
+    });
+
+    // If no deficit lines, add one empty row
+    if (deficitLines.length === 0) addVirementLine();
+
+    updateVirementTotal();
+
+    // Show edit mode banner
+    document.getElementById('editModeBanner').style.display = 'flex';
+    document.getElementById('editingVirementNum').textContent = (idx + 1);
+
+    // Change submit button text
+    document.getElementById('submitVirementBtn').textContent = 'Update Virement Request';
+
+    // Switch to create tab
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('tab-create').classList.add('active');
+    document.querySelectorAll('.tab-btn')[1].classList.add('active');
+}
+
+function cancelEdit() {
+    editingVirementIdx = -1;
+    document.getElementById('editModeBanner').style.display = 'none';
+    document.getElementById('submitVirementBtn').textContent = 'Submit Virement Request';
+    clearVirementForm();
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -2266,46 +2388,126 @@ async function syncBudgetFromCashbook() {
         let quartersPopulated = [];
         let totalTransactions = 0;
 
-        // ── STRATEGY 1: Per-quarter data structure ──
-        // Check if backup contains explicit per-quarter data (e.g., quarterData, quarters, allQuarters)
+        // ── STRATEGY 1: Cashbook per-quarter data (quarterlyBudgets + quarterlyTransactions) ──
+        // The Cashbook Dashboard stores per-quarter data using keys like:
+        //   quarterlyBudgets["cestis_budget_2025/2026_Q1"] = { budget: {...}, sections: {...} }
+        //   quarterlyTransactions["cestis_quarter_2025/2026_Q1"] = { openingBalance: 0, transactions: [...] }
+        const qBudgets = cashbookBackup.data.quarterlyBudgets || {};
+        const qTransactions = cashbookBackup.data.quarterlyTransactions || {};
+
+        // Process per-quarter budgets from Cashbook
+        Object.keys(qBudgets).forEach(key => {
+            const qd = qBudgets[key];
+            if (!qd || typeof qd !== 'object') return;
+
+            // Extract the budget object (handles both { budget: {...} } and flat {...})
+            const qBudget = { ...(qd.budget || qd) };
+            delete qBudget.sections; // Remove non-budget fields
+
+            // Remove deleted budget keys
+            const qDeleted = qd.deletedBudgetKeys || cloudDeletedBudgetKeys;
+            qDeleted.forEach(k => delete qBudget[k]);
+
+            // Parse key format: "cestis_budget_2025/2026_Q3" → "2025/2026_Q3"
+            let cacheKey = key;
+            const budgetKeyMatch = key.match(/(?:cestis_budget_)?(\d{4}\/\d{4})_Q(\d)/);
+            if (budgetKeyMatch) {
+                cacheKey = budgetKeyMatch[1] + '_Q' + budgetKeyMatch[2];
+            }
+
+            if (Object.keys(qBudget).length > 0) {
+                // Find matching transactions for this quarter
+                // Transaction key: "cestis_quarter_YYYY/YYYY+1_QN"
+                const txKey = key.replace('cestis_budget_', 'cestis_quarter_');
+                const txData = qTransactions[txKey];
+                const txList = (txData && txData.transactions) ? txData.transactions : [];
+
+                cloudQuarterCache[cacheKey] = {
+                    budget: qBudget,
+                    transactions: txList,
+                    syncedAt: new Date().toISOString()
+                };
+                quartersPopulated.push(cacheKey);
+                totalTransactions += txList.length;
+            }
+        });
+
+        // Also process any transactions that don't have a matching budget entry
+        Object.keys(qTransactions).forEach(key => {
+            const txData = qTransactions[key];
+            if (!txData || typeof txData !== 'object') return;
+
+            // Parse key: "cestis_quarter_2025/2026_Q3" → "2025/2026_Q3"
+            let cacheKey = key;
+            const txKeyMatch = key.match(/(?:cestis_quarter_)?(\d{4}\/\d{4})_Q(\d)/);
+            if (txKeyMatch) {
+                cacheKey = txKeyMatch[1] + '_Q' + txKeyMatch[2];
+            }
+
+            if (!quartersPopulated.includes(cacheKey)) {
+                const txList = txData.transactions || [];
+                if (txList.length > 0) {
+                    cloudQuarterCache[cacheKey] = {
+                        budget: {},
+                        transactions: txList,
+                        syncedAt: new Date().toISOString()
+                    };
+                    quartersPopulated.push(cacheKey);
+                    totalTransactions += txList.length;
+                }
+            }
+        });
+
+        // ── STRATEGY 2: Generic per-quarter data fields ──
+        // Also check for data under generic field names (quarterData, quarters, etc.)
         const perQuarterData = cashbookBackup.data.quarterData
             || cashbookBackup.data.quarters
             || cashbookBackup.data.allQuarters
             || null;
 
         if (perQuarterData && typeof perQuarterData === 'object') {
-            // Process each quarter from the per-quarter structure
             Object.keys(perQuarterData).forEach(key => {
                 const qd = perQuarterData[key];
-                const qBudget = { ...(qd.budget || {}) };
-                const qTransactions = qd.transactions || [];
-                // Remove deleted budget keys
+                if (!qd || typeof qd !== 'object') return;
+
+                let qBudget, qTxList;
+                if (qd.budget && typeof qd.budget === 'object') {
+                    qBudget = { ...qd.budget };
+                    qTxList = qd.transactions || [];
+                } else {
+                    qBudget = { ...qd };
+                    qTxList = [];
+                    delete qBudget.transactions;
+                    delete qBudget.deletedBudgetKeys;
+                }
+
                 const qDeleted = qd.deletedBudgetKeys || cloudDeletedBudgetKeys;
                 qDeleted.forEach(k => delete qBudget[k]);
 
-                // Normalize key format to "YYYY/YYYY+1_QN"
+                // Normalize key format
                 let cacheKey = key;
-                if (!key.includes('_Q')) {
-                    // Try to parse if it's just "Q3" or "2025/2026-Q3" etc.
-                    const qMatch = key.match(/(\d{4}\/\d{4})[_\-]?Q?(\d)/i);
-                    if (qMatch) cacheKey = qMatch[1] + '_Q' + qMatch[2];
+                const qMatch = key.match(/(?:cestis_(?:budget|quarter)_)?(\d{4}\/\d{4})[_\-]?Q?(\d)/i);
+                if (qMatch) {
+                    cacheKey = qMatch[1] + '_Q' + qMatch[2];
+                } else {
+                    const simpleQ = key.match(/Q?(\d)/i);
+                    if (simpleQ) cacheKey = cloudFY + '_Q' + simpleQ[1];
                 }
 
-                if (Object.keys(qBudget).length > 0 || qTransactions.length > 0) {
+                if (!quartersPopulated.includes(cacheKey) && (Object.keys(qBudget).length > 0 || qTxList.length > 0)) {
                     cloudQuarterCache[cacheKey] = {
                         budget: qBudget,
-                        transactions: qTransactions,
+                        transactions: qTxList,
                         syncedAt: new Date().toISOString()
                     };
                     quartersPopulated.push(cacheKey);
-                    totalTransactions += qTransactions.length;
+                    totalTransactions += qTxList.length;
                 }
             });
         }
 
-        // ── STRATEGY 2: Single budget + all transactions — split by date ──
-        // If no per-quarter data was found, or as a supplement, process
-        // the flat budget & transactions arrays
+        // ── STRATEGY 3: Flat budget + transactions — split by date ──
+        // Use the flat budget & transactions as a fallback or supplement
         const cloudBudget = cashbookBackup.data.budget || {};
         const cloudTransactions = cashbookBackup.data.transactions || [];
 
@@ -2319,7 +2521,6 @@ async function syncBudgetFromCashbook() {
             let undatedCount = 0;
 
             cloudTransactions.forEach(t => {
-                // Try to parse the transaction date from common fields
                 const txDate = t.date || t.transactionDate || t.dt || null;
                 const fqInfo = txDate ? getFYQuarterFromDate(txDate) : null;
 
@@ -2328,7 +2529,6 @@ async function syncBudgetFromCashbook() {
                     if (!txByQuarter[key]) txByQuarter[key] = [];
                     txByQuarter[key].push(t);
                 } else {
-                    // Transactions without parseable dates go to the backup's active quarter
                     undatedCount++;
                     const fallbackKey = cloudFY + '_Q' + cloudQ;
                     if (!txByQuarter[fallbackKey]) txByQuarter[fallbackKey] = [];
@@ -2338,7 +2538,6 @@ async function syncBudgetFromCashbook() {
 
             // Create/update cache entries for each quarter found in transactions
             Object.keys(txByQuarter).forEach(key => {
-                // Only update if this quarter wasn't already populated by Strategy 1
                 if (!quartersPopulated.includes(key)) {
                     cloudQuarterCache[key] = {
                         budget: { ...cleanBudget },
@@ -2364,15 +2563,23 @@ async function syncBudgetFromCashbook() {
             if (undatedCount > 0) {
                 console.warn('syncBudgetFromCashbook: ' + undatedCount + ' transactions had no parseable date, assigned to ' + cloudFY + '_Q' + cloudQ);
             }
-        } else if (quartersPopulated.length === 0 && Object.keys(cleanBudget).length > 0) {
-            // No transactions at all, but we have budget data — store for the active quarter
-            const fallbackKey = cloudFY + '_Q' + cloudQ;
-            cloudQuarterCache[fallbackKey] = {
-                budget: { ...cleanBudget },
-                transactions: [],
-                syncedAt: new Date().toISOString()
-            };
-            quartersPopulated.push(fallbackKey);
+        }
+
+        // ── STRATEGY 4: Fill missing quarters with budget allocations ──
+        // For quarters that have no data yet but we have budget allocations,
+        // populate them with the budget so users can see budget info for all quarters.
+        if (Object.keys(cleanBudget).length > 0) {
+            for (let q = 1; q <= 4; q++) {
+                const key = cloudFY + '_Q' + q;
+                if (!quartersPopulated.includes(key)) {
+                    cloudQuarterCache[key] = {
+                        budget: { ...cleanBudget },
+                        transactions: [],
+                        syncedAt: new Date().toISOString()
+                    };
+                    quartersPopulated.push(key);
+                }
+            }
         }
 
         saveCloudCache();
@@ -2983,11 +3190,14 @@ async function saveToCloud() {
 
         const savedByName = 'Dashboard User';
         const backupData = {
-            version: '1.0',
+            version: '1.1',
             timestamp: new Date().toISOString(),
             savedBy: savedByName,
             data: {
-                virementRequests: virementRequests
+                virementRequests: virementRequests,
+                cloudQuarterCache: cloudQuarterCache,
+                activeFY: virementActiveFY,
+                activeQ: virementActiveQ
             }
         };
 
@@ -3134,8 +3344,27 @@ async function syncFromCloud() {
             saveAllData();
         }
 
+        // Restore cloud quarter cache (budget data) if present in backup
+        if (backupData.data.cloudQuarterCache && typeof backupData.data.cloudQuarterCache === 'object') {
+            cloudQuarterCache = backupData.data.cloudQuarterCache;
+            saveCloudCache();
+        }
+
+        // Restore active FY/Q from backup if present
+        if (backupData.data.activeFY) {
+            virementActiveFY = backupData.data.activeFY;
+            const navQ = backupData.data.activeQ || virementActiveQ;
+            virementActiveQ = navQ;
+            document.querySelectorAll('.quarter-tab-btn').forEach((btn, i) => {
+                btn.classList.toggle('active', i + 1 === navQ);
+            });
+            populateFYSelector();
+        }
+
         // Reload budget from cloud cache
         loadBudgetForQuarter();
+        updateVirementPeriod();
+        updateQuarterTabIndicators();
 
         lastSyncTime = new Date();
         localStorage.setItem('schoolDashboardLastSyncTime', lastSyncTime.toISOString());
@@ -3145,6 +3374,12 @@ async function syncFromCloud() {
         renderBudgetOverview();
         renderRequests();
         renderPrintPreview();
+        if (adminUnlocked) renderAdminApprovals();
+
+        // Refresh virement form dropdowns with restored budget data
+        document.getElementById('virementLines').innerHTML = '';
+        addVirementLine();
+        updateVirementTotal();
 
         setCloudSyncing(false);
 
@@ -3154,7 +3389,8 @@ async function syncFromCloud() {
 
         const backupTime = new Date(backupData.timestamp).toLocaleString();
         const savedByInfo = backupData.savedBy ? `\nLast saved by: ${backupData.savedBy}` : '';
-        alert(`✅ Data synced from cloud successfully!\n\nBackup was created: ${backupTime}${savedByInfo}`);
+        const cacheInfo = backupData.data.cloudQuarterCache ? '\nBudget data: Restored' : '\nBudget data: Not included (sync from Cashbook to load)';
+        alert(`✅ Data synced from cloud successfully!\n\nBackup was created: ${backupTime}${savedByInfo}${cacheInfo}\nVirement requests: ${virementRequests.length}`);
 
     } catch (error) {
         console.error('Error syncing from cloud:', error);
@@ -3208,7 +3444,7 @@ async function mergeFromCloud() {
             throw new Error('Invalid backup file format');
         }
 
-        let mergeStats = { requestsAdded: 0 };
+        let mergeStats = { requestsAdded: 0, quartersAdded: 0 };
 
         // Merge virement requests - add cloud requests that don't exist locally (match by id)
         if (backupData.data.virementRequests) {
@@ -3221,6 +3457,20 @@ async function mergeFromCloud() {
             });
             if (mergeStats.requestsAdded > 0) {
                 saveAllData();
+            }
+        }
+
+        // Merge cloud quarter cache (budget data) if present in backup
+        if (backupData.data.cloudQuarterCache && typeof backupData.data.cloudQuarterCache === 'object') {
+            Object.keys(backupData.data.cloudQuarterCache).forEach(key => {
+                if (!cloudQuarterCache[key] || !cloudQuarterCache[key].budget || Object.keys(cloudQuarterCache[key].budget).length === 0) {
+                    cloudQuarterCache[key] = backupData.data.cloudQuarterCache[key];
+                    mergeStats.quartersAdded++;
+                }
+            });
+            if (mergeStats.quartersAdded > 0) {
+                saveCloudCache();
+                updateQuarterTabIndicators();
             }
         }
 
@@ -3245,8 +3495,9 @@ async function mergeFromCloud() {
         let summary = '✅ Merge from cloud completed!\n\n';
         summary += `📊 Merge Summary:\n`;
         summary += `• Virement requests added: ${mergeStats.requestsAdded}\n`;
+        summary += `• Budget quarters added: ${mergeStats.quartersAdded}\n`;
 
-        if (mergeStats.requestsAdded === 0) {
+        if (mergeStats.requestsAdded === 0 && mergeStats.quartersAdded === 0) {
             summary += '\n💡 No new data found — your local data already contains everything from the cloud.';
         } else {
             summary += `\n💡 Tip: Save to Cloud to push the merged data back for other users.`;
