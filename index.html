@@ -56,6 +56,9 @@
         }
 
         /* ─── TOP BAR ─── */
+        .sticky-nav-wrapper {
+            position: sticky; top: 0; z-index: 100;
+        }
         .topbar {
             background: linear-gradient(135deg, var(--navy-mid), var(--navy));
             border-bottom: 1px solid var(--border);
@@ -63,7 +66,6 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
-            position: sticky; top: 0; z-index: 100;
         }
         .topbar-brand {
             display: flex; align-items: center; gap: 1rem;
@@ -106,7 +108,6 @@
             background: var(--surface);
             border-bottom: 1px solid var(--border);
             padding: 0 2rem;
-            position: sticky; top: 0; z-index: 99;
         }
         .tab-btn {
             padding: 0.85rem 1.5rem;
@@ -942,6 +943,9 @@
 </head>
 <body>
 
+<!-- ═══════════════ STICKY NAV WRAPPER ═══════════════ -->
+<div class="sticky-nav-wrapper">
+
 <!-- ═══════════════ TOP BAR ═══════════════ -->
 <div class="topbar">
     <div class="topbar-brand">
@@ -1027,6 +1031,8 @@
     <button class="tab-btn" onclick="switchTab('admin',this)">🛡️ Admin Approvals</button>
     <button class="tab-btn" onclick="window.open('https://stevebarrettsrha-ops.github.io/CESTIS---Cashbook-Dashboard/','_blank')">📒 Cashbook Dashboard</button>
 </div>
+
+</div><!-- end sticky-nav-wrapper -->
 
 <!-- ═══════════════ MAIN CONTENT ═══════════════ -->
 <div class="main">
