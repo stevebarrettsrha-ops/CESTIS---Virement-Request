@@ -478,6 +478,11 @@
         .modal h2 { color: var(--gold); margin-bottom: 1rem; font-size: 1.1rem; }
 
         /* ─── LIVE PREVIEW SPREADSHEET ─── */
+        /* When live preview is active, let content use full width */
+        #tab-livepreview.active ~ .dummy-never,
+        #tab-livepreview {
+            max-width: none;
+        }
         .lp-container {
             background: var(--card);
             border: 1px solid var(--border);
@@ -491,7 +496,7 @@
             border-bottom: 1px solid var(--border);
         }
         .lp-header h3 { font-size: 0.95rem; color: white; }
-        .lp-scroll { overflow-x: auto; overflow-y: auto; max-height: 70vh; }
+        .lp-scroll { overflow-x: auto; overflow-y: auto; }
         .lp-table {
             width: max-content; min-width: 100%;
             border-collapse: collapse; font-size: 0.72rem;
@@ -508,8 +513,10 @@
             font-weight: 700;
         }
         .lp-table th.lp-label-col {
-            min-width: 150px; text-align: left;
+            min-width: 240px; text-align: left;
             position: sticky; left: 0; z-index: 3;
+            border-right: 2px solid rgba(0,0,0,0.3);
+            box-shadow: 2px 0 6px rgba(0,0,0,0.4);
         }
         .lp-table td {
             padding: 0.35rem 0.55rem;
@@ -523,24 +530,27 @@
             position: sticky; left: 0; z-index: 1;
             background: var(--card);
             color: var(--text);
-            min-width: 150px;
+            min-width: 240px;
+            border-right: 2px solid rgba(212,168,67,0.3);
+            box-shadow: 2px 0 6px rgba(0,0,0,0.4);
         }
-        /* Row types */
+        /* Row types — label cells use !important to paint over data columns when scrolling */
         .lp-row-allocated td { background: #1a6b1a; color: #b8f0b8; font-weight: 600; }
-        .lp-row-allocated td.lp-label-cell { background: #1a6b1a; color: white; }
+        .lp-row-allocated td.lp-label-cell { background: #1a6b1a !important; color: white; }
         .lp-row-actual td { background: #1e3a5f; color: #a8d8f0; }
-        .lp-row-actual td.lp-label-cell { background: #1e3a5f; color: white; }
+        .lp-row-actual td.lp-label-cell { background: #1e3a5f !important; color: white; }
         .lp-row-variance td { background: #3d2b00; color: #f0d080; }
-        .lp-row-variance td.lp-label-cell { background: #3d2b00; color: var(--gold); }
+        .lp-row-variance td.lp-label-cell { background: #3d2b00 !important; color: var(--gold); }
         .lp-row-virement td { background: #4a2000; color: #f0a050; font-weight: 600; }
-        .lp-row-virement td.lp-label-cell { background: #4a2000; color: #ffb347; }
+        .lp-row-virement td.lp-label-cell { background: #4a2000 !important; color: #ffb347; }
         .lp-row-adjusted td { background: #0d3320; color: #7dffb3; font-weight: 700; }
-        .lp-row-adjusted td.lp-label-cell { background: #0d3320; color: #7dffb3; }
+        .lp-row-adjusted td.lp-label-cell { background: #0d3320 !important; color: #7dffb3; }
         .lp-row-separator td { background: transparent; border: none; height: 8px; padding: 0; }
+        .lp-row-separator td.lp-label-cell { background: var(--card) !important; box-shadow: none; }
         .lp-row-detail td { background: var(--navy); color: var(--text-dim); font-size: 0.68rem; }
-        .lp-row-detail td.lp-label-cell { background: var(--navy); color: var(--text-dim); }
-        .lp-row-total td { background: rgba(212,168,67,0.15); color: var(--gold); font-weight: 700; font-size: 0.78rem; }
-        .lp-row-total td.lp-label-cell { background: rgba(212,168,67,0.15); color: var(--gold); }
+        .lp-row-detail td.lp-label-cell { background: var(--navy) !important; color: var(--text-dim); }
+        .lp-row-total td { background: #1a1500; color: var(--gold); font-weight: 700; font-size: 0.78rem; }
+        .lp-row-total td.lp-label-cell { background: #1a1500 !important; color: var(--gold); }
         /* Positive/Negative coloring within cells */
         .lp-pos { color: #4ade80 !important; }
         .lp-neg { color: #f87171 !important; }
@@ -1535,6 +1545,9 @@ function switchTab(tab, btn){
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     document.getElementById('tab-'+tab).classList.add('active');
     btn.classList.add('active');
+    // Expand main container for live preview (spreadsheet needs full width)
+    const mainEl = document.querySelector('.main');
+    if (mainEl) mainEl.style.maxWidth = tab === 'livepreview' ? 'none' : '';
     if(tab==='preview') renderPrintPreview();
     if(tab==='overview') renderBudgetOverview();
     if(tab==='livepreview') renderLivePreview();
