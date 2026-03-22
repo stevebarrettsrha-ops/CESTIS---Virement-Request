@@ -1364,6 +1364,12 @@ document.addEventListener('DOMContentLoaded', function(){
     initializeCloudSync();
     setTimeout(() => { initGoogleAuth(); }, 500);
 
+    // Restore any unsaved form draft from a previous session
+    restoreFormDraft();
+
+    // Start autosave (merge-save every 15 seconds)
+    startAutosave();
+
     // After init, check cloud status and notify if disconnected
     setTimeout(function(){
       checkCloudAndNotify('page_load');
@@ -1646,6 +1652,7 @@ function submitVirement(){
         document.getElementById('editModeBanner').style.display = 'none';
         document.getElementById('submitVirementBtn').textContent = 'Submit Virement Request';
         saveAllData();
+        clearFormDraft();
         clearVirementForm();
         renderRequests();
         renderBudgetOverview();
@@ -1671,6 +1678,7 @@ function submitVirement(){
         };
         virementRequests.push(request);
         saveAllData();
+        clearFormDraft();
         clearVirementForm();
         renderRequests();
         renderBudgetOverview();
@@ -2090,17 +2098,177 @@ function rejectVirement(idx){
 }
 
 // ═══════════════════════════════════════════════════════════
-//  SAVE / LOAD
+//  SAVE / LOAD  (with merge-save and autosave every 15 seconds)
 // ═══════════════════════════════════════════════════════════
+let _autosaveInterval = null;
+const AUTOSAVE_INTERVAL_MS = 15000; // 15 seconds
+const FORM_DRAFT_KEY = 'cesti_virement_form_draft';
+
 function saveAllData(){
-    localStorage.setItem('cesti_virements', JSON.stringify(virementRequests));
+    try {
+        // Merge-save: re-read localStorage first so we never silently
+        // discard requests that another tab/session added since our last load.
+        const stored = localStorage.getItem('cesti_virements');
+        if (stored) {
+            try {
+                const persisted = JSON.parse(stored);
+                if (Array.isArray(persisted)) {
+                    // Build a Set of IDs we already have in memory
+                    const memoryIds = new Set(virementRequests.map(r => r.id));
+                    // Add any requests from storage that we don't have (added by another tab)
+                    persisted.forEach(r => {
+                        if (r.id && !memoryIds.has(r.id)) {
+                            virementRequests.push(r);
+                        }
+                    });
+                }
+            } catch (_) { /* stored data corrupt — we'll overwrite it */ }
+        }
+        localStorage.setItem('cesti_virements', JSON.stringify(virementRequests));
+    } catch (e) {
+        console.error('saveAllData failed:', e);
+        // Surface quota / write errors to the user so data loss doesn't go unnoticed
+        if (e.name === 'QuotaExceededError') {
+            alert('⚠️ Storage is full — your data could not be saved. Please free up space or sync to Google Drive.');
+        }
+    }
 }
+
 function loadAllData(){
     try {
         let saved = localStorage.getItem('cesti_virements');
         if(saved) virementRequests = JSON.parse(saved);
-    } catch(e){}
+    } catch(e){
+        console.error('loadAllData failed:', e);
+    }
 }
+
+// ── Form-draft autosave ──────────────────────────────────
+// Captures in-progress form fields so they survive accidental
+// page refreshes / browser crashes even before the user clicks Submit.
+function captureFormDraft(){
+    try {
+        const draft = {
+            ts: Date.now(),
+            editingIdx: editingVirementIdx,
+            date: document.getElementById('vDate').value,
+            project: document.getElementById('vProjectName').value,
+            period: document.getElementById('vPeriod').value,
+            requestedBy: document.getElementById('vRequestedBy').value,
+            position: document.getElementById('vPosition').value,
+            deficitComment: document.getElementById('deficitComment').value,
+            anyLineComment: document.getElementById('anyLineComment').value,
+            lines: [],
+            anyLines: []
+        };
+        function grabLines(selector, arr){
+            document.querySelectorAll(selector).forEach(entry => {
+                const from = entry.querySelector('.vl-from');
+                const to   = entry.querySelector('.vl-to');
+                const amt  = entry.querySelector('.vl-amount');
+                if (from && to && amt) {
+                    arr.push({ from: from.value, to: to.value, amount: amt.value });
+                }
+            });
+        }
+        grabLines('#virementLines .virement-entry', draft.lines);
+        grabLines('#virementAnyLines .virement-entry', draft.anyLines);
+
+        // Only persist when the user has actually typed something useful
+        const hasContent = draft.requestedBy ||
+            draft.lines.some(l => l.from || l.to || l.amount) ||
+            draft.anyLines.some(l => l.from || l.to || l.amount);
+        if (hasContent) {
+            localStorage.setItem(FORM_DRAFT_KEY, JSON.stringify(draft));
+        }
+    } catch(_){}
+}
+
+function restoreFormDraft(){
+    try {
+        const raw = localStorage.getItem(FORM_DRAFT_KEY);
+        if (!raw) return;
+        const draft = JSON.parse(raw);
+        // Only restore if the draft is less than 24 hours old
+        if (Date.now() - draft.ts > 86400000) {
+            localStorage.removeItem(FORM_DRAFT_KEY);
+            return;
+        }
+        // Don't restore if there's already submitted data being edited
+        if (editingVirementIdx >= 0) return;
+
+        // Populate form fields
+        if (draft.date) document.getElementById('vDate').value = draft.date;
+        if (draft.requestedBy) document.getElementById('vRequestedBy').value = draft.requestedBy;
+        if (draft.position) document.getElementById('vPosition').value = draft.position;
+        if (draft.deficitComment) document.getElementById('deficitComment').value = draft.deficitComment;
+        if (draft.anyLineComment) document.getElementById('anyLineComment').value = draft.anyLineComment;
+
+        // Restore deficit virement lines
+        function restoreLines(lineData, containerId, addFn){
+            if (!lineData || lineData.length === 0) return;
+            const container = document.getElementById(containerId);
+            // Check if any line has actual data
+            const hasData = lineData.some(l => l.from || l.to || l.amount);
+            if (!hasData) return;
+            // Clear existing empty rows
+            container.innerHTML = '';
+            lineData.forEach(l => {
+                addFn();
+                const entries = container.querySelectorAll('.virement-entry');
+                const entry = entries[entries.length - 1];
+                if (entry) {
+                    if (l.from) entry.querySelector('.vl-from').value = l.from;
+                    if (l.to) entry.querySelector('.vl-to').value = l.to;
+                    if (l.amount) entry.querySelector('.vl-amount').value = l.amount;
+                }
+            });
+        }
+        restoreLines(draft.lines, 'virementLines', addVirementLine);
+        if (typeof addAnyVirementLine === 'function') {
+            restoreLines(draft.anyLines, 'virementAnyLines', addAnyVirementLine);
+        }
+
+        updateVirementTotal();
+        console.log('📝 Form draft restored from autosave');
+    } catch(_){}
+}
+
+function clearFormDraft(){
+    localStorage.removeItem(FORM_DRAFT_KEY);
+}
+
+// ── Autosave timer ───────────────────────────────────────
+// Merge-saves submitted requests AND captures form draft every 15 seconds.
+function startAutosave(){
+    if (_autosaveInterval) clearInterval(_autosaveInterval);
+    _autosaveInterval = setInterval(function(){
+        // 1. Merge-save the authoritative virementRequests array
+        saveAllData();
+        // 2. Capture whatever is in the form right now
+        captureFormDraft();
+        // 3. Also persist the cloud/budget cache
+        saveCloudCache();
+    }, AUTOSAVE_INTERVAL_MS);
+    console.log('⏱️ Autosave started – saving every ' + (AUTOSAVE_INTERVAL_MS / 1000) + 's');
+}
+
+// ── Guard against accidental close ───────────────────────
+window.addEventListener('beforeunload', function(e){
+    // Final save attempt before browser shuts down
+    saveAllData();
+    captureFormDraft();
+    saveCloudCache();
+});
+
+// Also save when the tab becomes hidden (mobile browser switch, etc.)
+document.addEventListener('visibilitychange', function(){
+    if (document.visibilityState === 'hidden') {
+        saveAllData();
+        captureFormDraft();
+        saveCloudCache();
+    }
+});
 
 // ═══════════════════════════════════════════════════════════
 //  QUARTER SWITCHING & BUDGET SYNC FROM CASHBOOK
