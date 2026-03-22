@@ -477,6 +477,123 @@
         }
         .modal h2 { color: var(--gold); margin-bottom: 1rem; font-size: 1.1rem; }
 
+        /* ─── LIVE PREVIEW SPREADSHEET ─── */
+        .lp-container {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+            margin-bottom: 1.5rem;
+        }
+        .lp-header {
+            padding: 1rem 1.25rem;
+            display: flex; justify-content: space-between; align-items: center;
+            border-bottom: 1px solid var(--border);
+        }
+        .lp-header h3 { font-size: 0.95rem; color: white; }
+        .lp-scroll { overflow-x: auto; overflow-y: auto; max-height: 70vh; }
+        .lp-table {
+            width: max-content; min-width: 100%;
+            border-collapse: collapse; font-size: 0.72rem;
+        }
+        .lp-table th {
+            position: sticky; top: 0; z-index: 2;
+            padding: 0.5rem 0.6rem;
+            font-size: 0.62rem; text-transform: uppercase;
+            letter-spacing: 0.5px; color: var(--navy);
+            background: var(--gold);
+            border: 1px solid rgba(0,0,0,0.15);
+            white-space: nowrap; text-align: center;
+            min-width: 95px; max-width: 130px;
+            font-weight: 700;
+        }
+        .lp-table th.lp-label-col {
+            min-width: 150px; text-align: left;
+            position: sticky; left: 0; z-index: 3;
+        }
+        .lp-table td {
+            padding: 0.35rem 0.55rem;
+            border: 1px solid rgba(255,255,255,0.06);
+            text-align: right; white-space: nowrap;
+            font-variant-numeric: tabular-nums;
+            font-size: 0.73rem;
+        }
+        .lp-table td.lp-label-cell {
+            text-align: left; font-weight: 600;
+            position: sticky; left: 0; z-index: 1;
+            background: var(--card);
+            color: var(--text);
+            min-width: 150px;
+        }
+        /* Row types */
+        .lp-row-allocated td { background: #1a6b1a; color: #b8f0b8; font-weight: 600; }
+        .lp-row-allocated td.lp-label-cell { background: #1a6b1a; color: white; }
+        .lp-row-actual td { background: #1e3a5f; color: #a8d8f0; }
+        .lp-row-actual td.lp-label-cell { background: #1e3a5f; color: white; }
+        .lp-row-variance td { background: #3d2b00; color: #f0d080; }
+        .lp-row-variance td.lp-label-cell { background: #3d2b00; color: var(--gold); }
+        .lp-row-virement td { background: #4a2000; color: #f0a050; font-weight: 600; }
+        .lp-row-virement td.lp-label-cell { background: #4a2000; color: #ffb347; }
+        .lp-row-adjusted td { background: #0d3320; color: #7dffb3; font-weight: 700; }
+        .lp-row-adjusted td.lp-label-cell { background: #0d3320; color: #7dffb3; }
+        .lp-row-separator td { background: transparent; border: none; height: 8px; padding: 0; }
+        .lp-row-detail td { background: var(--navy); color: var(--text-dim); font-size: 0.68rem; }
+        .lp-row-detail td.lp-label-cell { background: var(--navy); color: var(--text-dim); }
+        .lp-row-total td { background: rgba(212,168,67,0.15); color: var(--gold); font-weight: 700; font-size: 0.78rem; }
+        .lp-row-total td.lp-label-cell { background: rgba(212,168,67,0.15); color: var(--gold); }
+        /* Positive/Negative coloring within cells */
+        .lp-pos { color: #4ade80 !important; }
+        .lp-neg { color: #f87171 !important; }
+        .lp-zero { color: var(--text-dim) !important; }
+        /* Virement flow bar */
+        .lp-flow-bar {
+            display: inline-block;
+            height: 10px; border-radius: 3px;
+            margin-right: 4px; vertical-align: middle;
+        }
+        .lp-flow-from { background: #ef4444; }
+        .lp-flow-to { background: #22c55e; }
+        /* Summary cards for live preview */
+        .lp-summary-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 0.75rem; margin-bottom: 1.25rem;
+        }
+        .lp-summary-card {
+            background: var(--card); border: 1px solid var(--border);
+            border-radius: 8px; padding: 0.85rem 1rem;
+            position: relative; overflow: hidden;
+        }
+        .lp-summary-card::before {
+            content: ''; position: absolute; top: 0; left: 0;
+            width: 3px; height: 100%;
+        }
+        .lp-summary-card.lp-green::before { background: var(--emerald); }
+        .lp-summary-card.lp-red::before { background: var(--rose); }
+        .lp-summary-card.lp-gold::before { background: var(--gold); }
+        .lp-summary-card.lp-blue::before { background: var(--sky); }
+        .lp-summary-card .lp-sc-label {
+            font-size: 0.65rem; text-transform: uppercase;
+            letter-spacing: 1.5px; color: var(--text-dim); margin-bottom: 0.3rem;
+        }
+        .lp-summary-card .lp-sc-value {
+            font-size: 1.3rem; font-weight: 700; color: white;
+        }
+        /* Virement detail lines with colored indicators */
+        .lp-virement-legend {
+            display: flex; flex-wrap: wrap; gap: 0.75rem;
+            margin-bottom: 1rem; padding: 0.75rem 1rem;
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+        .lp-legend-item {
+            display: flex; align-items: center; gap: 0.4rem;
+            font-size: 0.72rem; color: var(--text-dim);
+        }
+        .lp-legend-swatch {
+            width: 14px; height: 14px; border-radius: 3px;
+        }
+
         /* ─── RESPONSIVE ─── */
         @media (max-width:900px) {
             .chart-grid { grid-template-columns: 1fr; }
@@ -891,6 +1008,7 @@
     <button class="tab-btn" onclick="switchTab('create',this)">✏️ Create Virement</button>
     <button class="tab-btn" onclick="switchTab('requests',this)">📋 Virement Requests</button>
     <button class="tab-btn" onclick="switchTab('preview',this)">🖨️ Print Preview</button>
+    <button class="tab-btn" onclick="switchTab('livepreview',this)">📊 Live Preview</button>
     <button class="tab-btn" onclick="switchTab('admin',this)">🛡️ Admin Approvals</button>
     <button class="tab-btn" onclick="window.open('https://stevebarrettsrha-ops.github.io/CESTIS---Cashbook-Dashboard/','_blank')">📒 Cashbook Dashboard</button>
 </div>
@@ -1037,6 +1155,38 @@
 </div>
 
 <!-- ─── TAB 5: ADMIN APPROVALS ─── -->
+<!-- ─── TAB: LIVE PREVIEW ─── -->
+<div id="tab-livepreview" class="tab-panel">
+    <div class="quarter-bar">
+        <div class="quarter-tabs">
+            <button class="quarter-tab-btn" onclick="switchVirementQuarter(1)">Q1 Apr-Jun<span class="q-data-dot no-data" id="qDotLP1"></span></button>
+            <button class="quarter-tab-btn" onclick="switchVirementQuarter(2)">Q2 Jul-Sep<span class="q-data-dot no-data" id="qDotLP2"></span></button>
+            <button class="quarter-tab-btn" onclick="switchVirementQuarter(3)">Q3 Oct-Dec<span class="q-data-dot no-data" id="qDotLP3"></span></button>
+            <button class="quarter-tab-btn" onclick="switchVirementQuarter(4)">Q4 Jan-Mar<span class="q-data-dot no-data" id="qDotLP4"></span></button>
+        </div>
+        <div class="fy-selector">
+            <button class="fy-nav-btn" onclick="shiftFiscalYear(-1)" title="Previous Fiscal Year">◀</button>
+            <select id="fySelectLP" class="fy-select" onchange="switchFiscalYear(this.value)"></select>
+            <button class="fy-nav-btn" onclick="shiftFiscalYear(1)" title="Next Fiscal Year">▶</button>
+        </div>
+        <span class="budget-source-badge default" id="budgetSourceBadgeLP">DEFAULT DATA</span>
+    </div>
+    <div id="lpSummaryRow" class="lp-summary-row"></div>
+    <div id="lpLegend" class="lp-virement-legend" style="display:none;"></div>
+    <div class="lp-container">
+        <div class="lp-header">
+            <h3 id="lpTableHeader">Live Virement Preview</h3>
+            <span style="font-size:0.75rem;color:var(--text-dim)">Spreadsheet View — All budget lines with virement adjustments</span>
+        </div>
+        <div class="lp-scroll">
+            <table class="lp-table" id="lpTable">
+                <thead id="lpHead"></thead>
+                <tbody id="lpBody"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
 <div id="tab-admin" class="tab-panel">
     <!-- PIN Gate (shown when admin not verified) -->
     <div id="adminGate" class="admin-gate">
@@ -1387,6 +1537,7 @@ function switchTab(tab, btn){
     btn.classList.add('active');
     if(tab==='preview') renderPrintPreview();
     if(tab==='overview') renderBudgetOverview();
+    if(tab==='livepreview') renderLivePreview();
     if(tab==='admin' && adminUnlocked) renderAdminApprovals();
 }
 
@@ -1506,6 +1657,264 @@ function renderBudgetOverview(){
         <td class="num ${tVariance>=0?'pos':'neg'}" style="font-weight:700;">${fmtSigned(tVariance)}</td>
         <td></td>
     </tr>`;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  LIVE PREVIEW (SPREADSHEET VIEW)
+// ═══════════════════════════════════════════════════════════
+
+// Distinct colors for individual virement request lines
+const VIREMENT_COLORS = [
+    '#f59e0b','#3b82f6','#8b5cf6','#ef4444','#10b981','#ec4899','#06b6d4','#f97316',
+    '#6366f1','#14b8a6','#e11d48','#84cc16','#a855f7','#0ea5e9','#d946ef','#22d3ee'
+];
+
+function renderLivePreview() {
+    const quarterRequests = getActiveQuarterRequests();
+    const qMeta = getQuarterMeta(virementActiveQ);
+    const calYear = getQuarterCalendarYear(virementActiveFY, virementActiveQ);
+
+    // Update header
+    const lpHeader = document.getElementById('lpTableHeader');
+    if (lpHeader) {
+        lpHeader.textContent = 'Live Virement Preview — ' + qMeta.shortLabel + ' ' + calYear;
+    }
+
+    // Update LP quarter dots
+    for (let q = 1; q <= 4; q++) {
+        const dot = document.getElementById('qDotLP' + q);
+        if (dot) {
+            const key = virementActiveFY + '_Q' + q;
+            const hasData = cloudQuarterCache[key] && cloudQuarterCache[key].budget;
+            dot.className = 'q-data-dot ' + (hasData ? 'has-data' : 'no-data');
+        }
+    }
+
+    // Sync FY selector for LP tab
+    const fySelectLP = document.getElementById('fySelectLP');
+    if (fySelectLP) {
+        const fySelectMain = document.getElementById('fySelect');
+        if (fySelectMain) {
+            fySelectLP.innerHTML = fySelectMain.innerHTML;
+            fySelectLP.value = virementActiveFY;
+        }
+    }
+
+    // Update budget source badge
+    const badge = document.getElementById('budgetSourceBadgeLP');
+    if (badge) {
+        badge.className = 'budget-source-badge ' + (budgetDataSource === 'cashbook-cloud' ? 'cloud' : 'default');
+        badge.textContent = budgetDataSource === 'cashbook-cloud' ? 'CLOUD DATA' : 'DEFAULT DATA';
+    }
+
+    // Calculate net virement effect per budget line
+    const virementNet = {}; // id -> { from: total taken, to: total received }
+    budgetData.forEach(b => { virementNet[b.id] = { from: 0, to: 0, net: 0 }; });
+
+    // Track individual virement lines for detail rows
+    const virementDetails = []; // { requestIdx, lineIdx, fromId, toId, amount, color, label }
+    let colorIdx = 0;
+
+    quarterRequests.forEach((req, ri) => {
+        req.lines.forEach((line, li) => {
+            const color = VIREMENT_COLORS[colorIdx % VIREMENT_COLORS.length];
+            colorIdx++;
+            if (virementNet[line.fromId]) {
+                virementNet[line.fromId].from += line.amount;
+                virementNet[line.fromId].net -= line.amount;
+            }
+            if (virementNet[line.toId]) {
+                virementNet[line.toId].to += line.amount;
+                virementNet[line.toId].net += line.amount;
+            }
+            virementDetails.push({
+                requestIdx: ri, lineIdx: li,
+                fromId: line.fromId, fromName: line.fromName,
+                toId: line.toId, toName: line.toName,
+                amount: line.amount, color: color,
+                label: 'V' + (ri + 1) + '.' + (li + 1) + ': ' + line.fromName + ' → ' + line.toName,
+                status: req.status || 'Pending'
+            });
+        });
+    });
+
+    // Build legend
+    const legendEl = document.getElementById('lpLegend');
+    if (virementDetails.length > 0) {
+        legendEl.style.display = 'flex';
+        legendEl.innerHTML = virementDetails.map(d =>
+            '<div class="lp-legend-item">' +
+            '<span class="lp-legend-swatch" style="background:' + d.color + '"></span>' +
+            '<span>' + d.label + ' (' + fmt(d.amount) + ') [' + d.status + ']</span>' +
+            '</div>'
+        ).join('');
+    } else {
+        legendEl.style.display = 'none';
+    }
+
+    // Summary calculations
+    let totalAllocated = 0, totalActual = 0, totalVirementFrom = 0, totalVirementTo = 0;
+    budgetData.forEach(b => {
+        totalAllocated += b.allocated;
+        totalActual += b.actual;
+    });
+    Object.values(virementNet).forEach(v => {
+        totalVirementFrom += v.from;
+        totalVirementTo += v.to;
+    });
+    const totalSurplus = budgetData.reduce((s, b) => {
+        const v = b.allocated - b.actual;
+        return v > 0 ? s + v : s;
+    }, 0);
+    const totalDeficit = budgetData.reduce((s, b) => {
+        const v = b.allocated - b.actual;
+        return v < 0 ? s + Math.abs(v) : s;
+    }, 0);
+    const netVariance = totalAllocated - totalActual;
+    const totalVired = totalVirementFrom;
+
+    // Summary cards
+    document.getElementById('lpSummaryRow').innerHTML =
+        '<div class="lp-summary-card lp-green"><div class="lp-sc-label">Total Available (Surplus)</div><div class="lp-sc-value">' + fmt(totalSurplus) + '</div></div>' +
+        '<div class="lp-summary-card lp-red"><div class="lp-sc-label">Total Over (Deficit)</div><div class="lp-sc-value">' + fmt(totalDeficit) + '</div></div>' +
+        '<div class="lp-summary-card lp-gold"><div class="lp-sc-label">Net Variance</div><div class="lp-sc-value ' + (netVariance >= 0 ? 'lp-pos' : 'lp-neg') + '">' + fmtSigned(netVariance) + '</div></div>' +
+        '<div class="lp-summary-card lp-blue"><div class="lp-sc-label">Total Vired</div><div class="lp-sc-value">' + fmt(totalVired) + '</div></div>';
+
+    // Build spreadsheet table
+    // Column headers = each budget line item
+    let headHtml = '<tr><th class="lp-label-col"></th>';
+    budgetData.forEach(b => {
+        headHtml += '<th>' + b.name + '</th>';
+    });
+    headHtml += '<th>TOTAL</th></tr>';
+    document.getElementById('lpHead').innerHTML = headHtml;
+
+    let bodyHtml = '';
+
+    // Helper to format a cell value
+    function cell(val, cls) {
+        if (val === 0) return '<td class="' + (cls || '') + ' lp-zero">—</td>';
+        const signCls = val > 0 ? 'lp-pos' : val < 0 ? 'lp-neg' : 'lp-zero';
+        return '<td class="' + (cls || '') + ' ' + signCls + '">' + fmtSigned(val) + '</td>';
+    }
+    function cellAbs(val, cls) {
+        if (val === 0) return '<td class="' + (cls || '') + ' lp-zero">—</td>';
+        return '<td class="' + (cls || '') + '">' + fmt(val) + '</td>';
+    }
+
+    // Row 1: Allocated
+    bodyHtml += '<tr class="lp-row-allocated"><td class="lp-label-cell">Allocated</td>';
+    let rowTotal = 0;
+    budgetData.forEach(b => {
+        bodyHtml += cellAbs(b.allocated);
+        rowTotal += b.allocated;
+    });
+    bodyHtml += cellAbs(rowTotal) + '</tr>';
+
+    // Row 2: Actual Spending
+    bodyHtml += '<tr class="lp-row-actual"><td class="lp-label-cell">Actual Spend</td>';
+    rowTotal = 0;
+    budgetData.forEach(b => {
+        bodyHtml += cellAbs(b.actual);
+        rowTotal += b.actual;
+    });
+    bodyHtml += cellAbs(rowTotal) + '</tr>';
+
+    // Row 3: Variance (Allocated - Actual)
+    bodyHtml += '<tr class="lp-row-variance"><td class="lp-label-cell">Variance</td>';
+    rowTotal = 0;
+    budgetData.forEach(b => {
+        const v = b.allocated - b.actual;
+        bodyHtml += cell(v);
+        rowTotal += v;
+    });
+    bodyHtml += cell(rowTotal) + '</tr>';
+
+    // Row 4: Net Virement Effect
+    bodyHtml += '<tr class="lp-row-virement"><td class="lp-label-cell">Virement Net</td>';
+    rowTotal = 0;
+    budgetData.forEach(b => {
+        const net = virementNet[b.id] ? virementNet[b.id].net : 0;
+        bodyHtml += cell(net);
+        rowTotal += net;
+    });
+    bodyHtml += cell(rowTotal) + '</tr>';
+
+    // Row 5: Adjusted Variance (Variance + Virement Net)
+    bodyHtml += '<tr class="lp-row-adjusted"><td class="lp-label-cell">Adjusted Balance</td>';
+    rowTotal = 0;
+    budgetData.forEach(b => {
+        const v = b.allocated - b.actual;
+        const net = virementNet[b.id] ? virementNet[b.id].net : 0;
+        const adj = v + net;
+        bodyHtml += cell(adj);
+        rowTotal += adj;
+    });
+    bodyHtml += cell(rowTotal) + '</tr>';
+
+    // Separator
+    bodyHtml += '<tr class="lp-row-separator"><td colspan="' + (budgetData.length + 2) + '"></td></tr>';
+
+    // Individual virement detail rows
+    if (virementDetails.length > 0) {
+        bodyHtml += '<tr class="lp-row-total"><td class="lp-label-cell" colspan="' + (budgetData.length + 2) + '">Individual Virement Lines</td></tr>';
+
+        virementDetails.forEach(d => {
+            bodyHtml += '<tr class="lp-row-detail"><td class="lp-label-cell">' +
+                '<span class="lp-flow-bar" style="background:' + d.color + ';width:10px;"></span> ' +
+                d.label + '</td>';
+            budgetData.forEach(b => {
+                if (b.id === d.fromId) {
+                    bodyHtml += '<td class="lp-neg">-' + fmt(d.amount) + '</td>';
+                } else if (b.id === d.toId) {
+                    bodyHtml += '<td class="lp-pos">+' + fmt(d.amount) + '</td>';
+                } else {
+                    bodyHtml += '<td class="lp-zero">—</td>';
+                }
+            });
+            // Row total is always 0 (from cancels to)
+            bodyHtml += '<td class="lp-zero">—</td></tr>';
+        });
+    }
+
+    // Separator
+    bodyHtml += '<tr class="lp-row-separator"><td colspan="' + (budgetData.length + 2) + '"></td></tr>';
+
+    // Totals summary row
+    bodyHtml += '<tr class="lp-row-total"><td class="lp-label-cell">Total Allocated</td>';
+    rowTotal = 0;
+    budgetData.forEach(b => { bodyHtml += cellAbs(b.allocated); rowTotal += b.allocated; });
+    bodyHtml += cellAbs(rowTotal) + '</tr>';
+
+    bodyHtml += '<tr class="lp-row-total"><td class="lp-label-cell">Total Actual</td>';
+    rowTotal = 0;
+    budgetData.forEach(b => { bodyHtml += cellAbs(b.actual); rowTotal += b.actual; });
+    bodyHtml += cellAbs(rowTotal) + '</tr>';
+
+    bodyHtml += '<tr class="lp-row-total"><td class="lp-label-cell">Difference</td>';
+    rowTotal = 0;
+    budgetData.forEach(b => { const v = b.allocated - b.actual; bodyHtml += cell(v); rowTotal += v; });
+    bodyHtml += cell(rowTotal) + '</tr>';
+
+    bodyHtml += '<tr class="lp-row-total"><td class="lp-label-cell">Total Virement</td>';
+    rowTotal = 0;
+    budgetData.forEach(b => {
+        const net = virementNet[b.id] ? virementNet[b.id].net : 0;
+        bodyHtml += cell(net);
+        rowTotal += net;
+    });
+    bodyHtml += cell(rowTotal) + '</tr>';
+
+    bodyHtml += '<tr class="lp-row-adjusted"><td class="lp-label-cell">Final Balance</td>';
+    rowTotal = 0;
+    budgetData.forEach(b => {
+        const v = b.allocated - b.actual + (virementNet[b.id] ? virementNet[b.id].net : 0);
+        bodyHtml += cell(v);
+        rowTotal += v;
+    });
+    bodyHtml += cell(rowTotal) + '</tr>';
+
+    document.getElementById('lpBody').innerHTML = bodyHtml;
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -2293,6 +2702,7 @@ function switchVirementQuarter(q) {
     renderBudgetOverview();
     renderRequests();
     renderPrintPreview();
+    renderLivePreview();
     if(adminUnlocked) renderAdminApprovals();
     // Refresh virement form dropdowns
     document.getElementById('virementLines').innerHTML = '';
@@ -2365,10 +2775,11 @@ function updateQuarterDisplay() {
 // Update quarter tab indicators to show which quarters have data
 function updateQuarterTabIndicators() {
     for (let q = 1; q <= 4; q++) {
+        const cls = hasQuarterData(virementActiveFY, q) ? 'q-data-dot has-data' : 'q-data-dot no-data';
         const dot = document.getElementById('qDot' + q);
-        if (dot) {
-            dot.className = hasQuarterData(virementActiveFY, q) ? 'q-data-dot has-data' : 'q-data-dot no-data';
-        }
+        if (dot) dot.className = cls;
+        const dotLP = document.getElementById('qDotLP' + q);
+        if (dotLP) dotLP.className = cls;
     }
 }
 
@@ -2419,6 +2830,7 @@ function switchFiscalYear(fy) {
     renderBudgetOverview();
     renderRequests();
     renderPrintPreview();
+    renderLivePreview();
     // Refresh virement form
     document.getElementById('virementLines').innerHTML = '';
     addVirementLine();
@@ -2426,6 +2838,8 @@ function switchFiscalYear(fy) {
     // Update FY dropdown selection
     const select = document.getElementById('fySelect');
     if (select) select.value = fy;
+    const selectLP = document.getElementById('fySelectLP');
+    if (selectLP) selectLP.value = fy;
 }
 
 // Navigate FY forward/backward via arrow buttons
