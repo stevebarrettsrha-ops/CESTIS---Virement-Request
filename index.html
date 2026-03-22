@@ -1874,7 +1874,9 @@ function renderLivePreview() {
 
     // Individual virement detail rows
     if (virementDetails.length > 0) {
-        bodyHtml += '<tr class="lp-row-total"><td class="lp-label-cell" colspan="' + (budgetData.length + 2) + '">Individual Virement Lines</td></tr>';
+        bodyHtml += '<tr class="lp-row-total"><td class="lp-label-cell">Individual Virement Lines</td>';
+        for (var _i = 0; _i < budgetData.length + 1; _i++) { bodyHtml += '<td></td>'; }
+        bodyHtml += '</tr>';
 
         virementDetails.forEach(d => {
             bodyHtml += '<tr class="lp-row-detail"><td class="lp-label-cell">' +
