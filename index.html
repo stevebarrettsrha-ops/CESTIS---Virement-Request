@@ -2548,12 +2548,24 @@ function saveAllData(){
             try {
                 const persisted = JSON.parse(stored);
                 if (Array.isArray(persisted)) {
-                    // Build a Set of IDs we already have in memory
-                    const memoryIds = new Set(virementRequests.map(r => r.id));
-                    // Add any requests from storage that we don't have (added by another tab)
+                    // Build a map of our in-memory requests by ID
+                    const memoryMap = {};
+                    virementRequests.forEach((r, i) => { if (r.id) memoryMap[r.id] = i; });
                     persisted.forEach(r => {
-                        if (r.id && !memoryIds.has(r.id)) {
+                        if (!r.id) return;
+                        if (!(r.id in memoryMap)) {
+                            // New request from another tab — add it
                             virementRequests.push(r);
+                        } else {
+                            // Existing request — sync approval state if the stored
+                            // version has a newer approval we don't have yet
+                            const local = virementRequests[memoryMap[r.id]];
+                            if (local.status === 'Pending' && (r.status === 'Approved' || r.status === 'Rejected')) {
+                                local.status = r.status;
+                                local.approvedBy = r.approvedBy;
+                                local.approvalDate = r.approvalDate;
+                                local.approvalComment = r.approvalComment;
+                            }
                         }
                     });
                 }
@@ -3822,6 +3834,45 @@ async function saveToCloud() {
         // to ensure cloudFileId is accurate and points to the correct folder
         await findExistingBackupFile();
 
+        // Pre-save merge: pull cloud approval states so we don't overwrite
+        // approvals made by another user since our last sync
+        if (cloudFileId) {
+            try {
+                const preMergeResp = await fetch(
+                    `https://www.googleapis.com/drive/v3/files/${cloudFileId}?alt=media`,
+                    { headers: { 'Authorization': `Bearer ${googleAccessToken}` } }
+                );
+                if (preMergeResp.ok) {
+                    const cloudData = await preMergeResp.json();
+                    if (cloudData.data && cloudData.data.virementRequests) {
+                        const localMap = {};
+                        virementRequests.forEach((r, i) => { if (r.id) localMap[r.id] = i; });
+                        cloudData.data.virementRequests.forEach(cr => {
+                            if (!cr.id) return;
+                            if (!(cr.id in localMap)) {
+                                // New request from cloud — include it in save
+                                virementRequests.push(cr);
+                            } else {
+                                // Sync approval: if cloud has approval and local doesn't
+                                const local = virementRequests[localMap[cr.id]];
+                                const cloudApproved = cr.status === 'Approved' || cr.status === 'Rejected';
+                                const localPending = local.status === 'Pending';
+                                if (cloudApproved && localPending) {
+                                    local.status = cr.status;
+                                    local.approvedBy = cr.approvedBy;
+                                    local.approvalDate = cr.approvalDate;
+                                    local.approvalComment = cr.approvalComment;
+                                }
+                            }
+                        });
+                        saveAllData(); // persist merged data locally too
+                    }
+                }
+            } catch (mergeErr) {
+                console.warn('Pre-save cloud merge skipped:', mergeErr);
+            }
+        }
+
         const savedByName = 'Dashboard User';
         const backupData = {
             version: '1.1',
@@ -3953,7 +4004,7 @@ async function syncFromCloud() {
         return;
     }
 
-    if (!confirm('⚠️ This will replace your local data with the cloud backup. Are you sure you want to continue?')) {
+    if (!confirm('⚠️ This will sync your local data with the cloud backup.\n\n• Cloud requests & approvals will be applied\n• Local-only requests will be preserved\n• Approval status changes will be merged\n\nContinue?')) {
         return;
     }
 
@@ -3974,7 +4025,29 @@ async function syncFromCloud() {
         }
 
         if (backupData.data.virementRequests) {
-            virementRequests = backupData.data.virementRequests;
+            // Smart merge: cloud data wins for matching records, but
+            // preserve any local-only requests not yet in the cloud
+            const cloudRequests = backupData.data.virementRequests;
+            const cloudMap = {};
+            cloudRequests.forEach(r => { if (r.id) cloudMap[r.id] = r; });
+
+            // Keep local-only requests (not present in cloud)
+            const localOnly = virementRequests.filter(r => r.id && !(r.id in cloudMap));
+
+            // For requests in both: prefer the one with the most recent
+            // approval action, falling back to the cloud version
+            const merged = cloudRequests.map(cloudReq => {
+                const localReq = virementRequests.find(r => r.id === cloudReq.id);
+                if (!localReq) return cloudReq;
+                // If local has a newer approval than cloud, keep local approval
+                const localHasApproval = localReq.status === 'Approved' || localReq.status === 'Rejected';
+                const cloudHasApproval = cloudReq.status === 'Approved' || cloudReq.status === 'Rejected';
+                if (localHasApproval && !cloudHasApproval) return localReq;
+                if (localHasApproval && cloudHasApproval && localReq.approvalDate > cloudReq.approvalDate) return localReq;
+                return cloudReq;
+            });
+
+            virementRequests = merged.concat(localOnly);
             saveAllData();
         }
 
@@ -4003,6 +4076,9 @@ async function syncFromCloud() {
         lastSyncTime = new Date();
         localStorage.setItem('schoolDashboardLastSyncTime', lastSyncTime.toISOString());
         updateLastSyncDisplay();
+
+        // Clear stale form draft after cloud sync
+        localStorage.removeItem(FORM_DRAFT_KEY);
 
         // Refresh UI
         renderBudgetOverview();
@@ -4080,16 +4156,39 @@ async function mergeFromCloud() {
 
         let mergeStats = { requestsAdded: 0, quartersAdded: 0 };
 
-        // Merge virement requests - add cloud requests that don't exist locally (match by id)
+        // Merge virement requests - add new cloud requests AND sync approval status updates
         if (backupData.data.virementRequests) {
-            const localIds = virementRequests.map(r => r.id);
+            const localMap = {};
+            virementRequests.forEach((r, i) => { if (r.id) localMap[r.id] = i; });
+            mergeStats.approvalsUpdated = 0;
             backupData.data.virementRequests.forEach(cloudRequest => {
-                if (!localIds.includes(cloudRequest.id)) {
+                if (!(cloudRequest.id in localMap)) {
+                    // New request from cloud — add it
                     virementRequests.push(cloudRequest);
                     mergeStats.requestsAdded++;
+                } else {
+                    // Existing request — sync approval state if cloud has a
+                    // newer approval (Approved/Rejected beats Pending, or
+                    // a later approvalDate wins)
+                    const local = virementRequests[localMap[cloudRequest.id]];
+                    const cloudHasApproval = cloudRequest.status === 'Approved' || cloudRequest.status === 'Rejected';
+                    const localIsPending = local.status === 'Pending';
+                    const cloudDateNewer = cloudRequest.approvalDate && (!local.approvalDate || cloudRequest.approvalDate > local.approvalDate);
+                    if (cloudHasApproval && (localIsPending || cloudDateNewer)) {
+                        local.status = cloudRequest.status;
+                        local.approvedBy = cloudRequest.approvedBy;
+                        local.approvalDate = cloudRequest.approvalDate;
+                        local.approvalComment = cloudRequest.approvalComment;
+                        mergeStats.approvalsUpdated++;
+                    }
+                    // Also sync any field edits from cloud if cloud version is newer
+                    if (cloudRequest.date && local.date && cloudRequest.date > local.date) {
+                        Object.assign(local, cloudRequest);
+                        mergeStats.approvalsUpdated++;
+                    }
                 }
             });
-            if (mergeStats.requestsAdded > 0) {
+            if (mergeStats.requestsAdded > 0 || mergeStats.approvalsUpdated > 0) {
                 saveAllData();
             }
         }
@@ -4129,9 +4228,11 @@ async function mergeFromCloud() {
         let summary = '✅ Merge from cloud completed!\n\n';
         summary += `📊 Merge Summary:\n`;
         summary += `• Virement requests added: ${mergeStats.requestsAdded}\n`;
+        summary += `• Approval statuses updated: ${mergeStats.approvalsUpdated || 0}\n`;
         summary += `• Budget quarters added: ${mergeStats.quartersAdded}\n`;
 
-        if (mergeStats.requestsAdded === 0 && mergeStats.quartersAdded === 0) {
+        const totalChanges = mergeStats.requestsAdded + (mergeStats.approvalsUpdated || 0) + mergeStats.quartersAdded;
+        if (totalChanges === 0) {
             summary += '\n💡 No new data found — your local data already contains everything from the cloud.';
         } else {
             summary += `\n💡 Tip: Save to Cloud to push the merged data back for other users.`;
