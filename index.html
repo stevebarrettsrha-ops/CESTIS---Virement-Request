@@ -2543,6 +2543,28 @@ let _autosaveInterval = null;
 const AUTOSAVE_INTERVAL_MS = 15000; // 15 seconds
 const FORM_DRAFT_KEY = 'cesti_virement_form_draft';
 
+// Deduplicate virementRequests in-place: keep only the first occurrence of each ID.
+// For requests with the same ID, prefer the one with an approval over Pending.
+function deduplicateRequests() {
+    const seen = {};
+    const unique = [];
+    for (const r of virementRequests) {
+        if (!r.id) { unique.push(r); continue; }
+        if (deletedRequestIds.has(r.id)) continue; // also strip deleted
+        if (r.id in seen) {
+            // If this duplicate has an approval and the kept one doesn't, replace
+            const kept = unique[seen[r.id]];
+            if (kept.status === 'Pending' && (r.status === 'Approved' || r.status === 'Rejected')) {
+                unique[seen[r.id]] = r;
+            }
+            continue;
+        }
+        seen[r.id] = unique.length;
+        unique.push(r);
+    }
+    virementRequests = unique;
+}
+
 function saveAllData(){
     try {
         // Merge-save: re-read localStorage first so we never silently
@@ -2577,6 +2599,7 @@ function saveAllData(){
                 }
             } catch (_) { /* stored data corrupt — we'll overwrite it */ }
         }
+        deduplicateRequests();
         localStorage.setItem('cesti_virements', JSON.stringify(virementRequests));
         // Persist deleted IDs alongside the data
         localStorage.setItem(DELETED_IDS_KEY, JSON.stringify([...deletedRequestIds]));
@@ -2601,6 +2624,8 @@ function loadAllData(){
         const savedDeleted = localStorage.getItem(DELETED_IDS_KEY);
         if (savedDeleted) deletedRequestIds = new Set(JSON.parse(savedDeleted));
     } catch(e){ /* ignore corrupt data */ }
+    // Clean up any existing duplicates from prior merge bugs
+    deduplicateRequests();
 }
 
 // ── Form-draft autosave ──────────────────────────────────
@@ -4051,6 +4076,9 @@ async function saveToCloud() {
             alert('❌ Cannot save to cloud: you have no virement requests locally.\n\nPlease click "Sync from Cloud" first to restore your data, then try saving again.');
             return;
         }
+
+        // Deduplicate before pushing to cloud
+        deduplicateRequests();
 
         const savedByName = 'Dashboard User';
         const backupData = {
