@@ -1378,6 +1378,8 @@ let budgetData = Object.values(CASHBOOK_CATEGORY_MAP).map(m => ({
 }));
 
 let virementRequests = [];
+let deletedRequestIds = new Set(); // Track deleted IDs so merges never resurrect them
+const DELETED_IDS_KEY = 'cesti_virement_deleted_ids';
 let currentModalIdx = -1;
 let editingVirementIdx = -1; // -1 means not editing; >= 0 means editing that index
 
@@ -2190,6 +2192,8 @@ function showDetail(idx){
 function closeModal(){ document.getElementById('detailModal').classList.remove('show'); }
 function deleteCurrentVirement(){
     if(currentModalIdx>=0 && confirm('Delete this virement request?')){
+        const removed = virementRequests[currentModalIdx];
+        if (removed && removed.id) deletedRequestIds.add(removed.id);
         virementRequests.splice(currentModalIdx,1);
         saveAllData(); renderRequests(); renderBudgetOverview(); closeModal();
     }
@@ -2553,6 +2557,8 @@ function saveAllData(){
                     virementRequests.forEach((r, i) => { if (r.id) memoryMap[r.id] = i; });
                     persisted.forEach(r => {
                         if (!r.id) return;
+                        // Never resurrect a deleted request
+                        if (deletedRequestIds.has(r.id)) return;
                         if (!(r.id in memoryMap)) {
                             // New request from another tab — add it
                             virementRequests.push(r);
@@ -2572,6 +2578,8 @@ function saveAllData(){
             } catch (_) { /* stored data corrupt — we'll overwrite it */ }
         }
         localStorage.setItem('cesti_virements', JSON.stringify(virementRequests));
+        // Persist deleted IDs alongside the data
+        localStorage.setItem(DELETED_IDS_KEY, JSON.stringify([...deletedRequestIds]));
     } catch (e) {
         console.error('saveAllData failed:', e);
         // Surface quota / write errors to the user so data loss doesn't go unnoticed
@@ -2588,6 +2596,11 @@ function loadAllData(){
     } catch(e){
         console.error('loadAllData failed:', e);
     }
+    // Load deleted IDs so we never resurrect them during merges
+    try {
+        const savedDeleted = localStorage.getItem(DELETED_IDS_KEY);
+        if (savedDeleted) deletedRequestIds = new Set(JSON.parse(savedDeleted));
+    } catch(e){ /* ignore corrupt data */ }
 }
 
 // ── Form-draft autosave ──────────────────────────────────
@@ -3498,6 +3511,15 @@ async function autoMergeFromCloudOnLoad() {
 
         let changed = false;
 
+        // Merge deleted IDs from cloud so we respect deletions from other devices
+        if (Array.isArray(backupData.data.deletedRequestIds)) {
+            backupData.data.deletedRequestIds.forEach(id => deletedRequestIds.add(id));
+            // Remove any locally-held requests that were deleted on another device
+            const beforeLen = virementRequests.length;
+            virementRequests = virementRequests.filter(r => !r.id || !deletedRequestIds.has(r.id));
+            if (virementRequests.length !== beforeLen) changed = true;
+        }
+
         if (backupData.data.virementRequests) {
             const cloudRequests = backupData.data.virementRequests;
             const localMap = {};
@@ -3505,6 +3527,8 @@ async function autoMergeFromCloudOnLoad() {
 
             cloudRequests.forEach(cr => {
                 if (!cr.id) return;
+                // Never resurrect a deleted request
+                if (deletedRequestIds.has(cr.id)) return;
                 if (!(cr.id in localMap)) {
                     // Cloud request not in local — add it
                     virementRequests.push(cr);
@@ -3977,11 +4001,19 @@ async function saveToCloud() {
                 );
                 if (preMergeResp.ok) {
                     const cloudData = await preMergeResp.json();
+                    // Merge cloud deleted IDs so we respect deletions from other devices
+                    if (cloudData.data && Array.isArray(cloudData.data.deletedRequestIds)) {
+                        cloudData.data.deletedRequestIds.forEach(id => deletedRequestIds.add(id));
+                        // Remove any locally-held requests that were deleted on another device
+                        virementRequests = virementRequests.filter(r => !r.id || !deletedRequestIds.has(r.id));
+                    }
                     if (cloudData.data && cloudData.data.virementRequests) {
                         const localMap = {};
                         virementRequests.forEach((r, i) => { if (r.id) localMap[r.id] = i; });
                         cloudData.data.virementRequests.forEach(cr => {
                             if (!cr.id) return;
+                            // Never resurrect a deleted request
+                            if (deletedRequestIds.has(cr.id)) return;
                             if (!(cr.id in localMap)) {
                                 // New request from cloud — include it in save
                                 virementRequests.push(cr);
@@ -4022,11 +4054,12 @@ async function saveToCloud() {
 
         const savedByName = 'Dashboard User';
         const backupData = {
-            version: '1.1',
+            version: '1.2',
             timestamp: new Date().toISOString(),
             savedBy: savedByName,
             data: {
                 virementRequests: virementRequests,
+                deletedRequestIds: [...deletedRequestIds],
                 cloudQuarterCache: cloudQuarterCache,
                 activeFY: virementActiveFY,
                 activeQ: virementActiveQ
@@ -4171,15 +4204,20 @@ async function syncFromCloud() {
             throw new Error('Invalid backup file format');
         }
 
+        // Merge deleted IDs from cloud so we respect deletions from other devices
+        if (Array.isArray(backupData.data.deletedRequestIds)) {
+            backupData.data.deletedRequestIds.forEach(id => deletedRequestIds.add(id));
+        }
+
         if (backupData.data.virementRequests) {
             // Smart merge: cloud data wins for matching records, but
             // preserve any local-only requests not yet in the cloud
-            const cloudRequests = backupData.data.virementRequests;
+            const cloudRequests = backupData.data.virementRequests.filter(r => !r.id || !deletedRequestIds.has(r.id));
             const cloudMap = {};
             cloudRequests.forEach(r => { if (r.id) cloudMap[r.id] = r; });
 
-            // Keep local-only requests (not present in cloud)
-            const localOnly = virementRequests.filter(r => r.id && !(r.id in cloudMap));
+            // Keep local-only requests (not present in cloud), excluding deleted
+            const localOnly = virementRequests.filter(r => r.id && !(r.id in cloudMap) && !deletedRequestIds.has(r.id));
 
             // For requests in both: prefer the one with the most recent
             // approval action, falling back to the cloud version
@@ -4303,12 +4341,23 @@ async function mergeFromCloud() {
 
         let mergeStats = { requestsAdded: 0, quartersAdded: 0 };
 
+        // Merge deleted IDs from cloud so we respect deletions from other devices
+        if (Array.isArray(backupData.data.deletedRequestIds)) {
+            backupData.data.deletedRequestIds.forEach(id => deletedRequestIds.add(id));
+            // Remove any locally-held requests that were deleted on another device
+            const beforeCount = virementRequests.length;
+            virementRequests = virementRequests.filter(r => !r.id || !deletedRequestIds.has(r.id));
+            mergeStats.deletionsApplied = beforeCount - virementRequests.length;
+        }
+
         // Merge virement requests - add new cloud requests AND sync approval status updates
         if (backupData.data.virementRequests) {
             const localMap = {};
             virementRequests.forEach((r, i) => { if (r.id) localMap[r.id] = i; });
             mergeStats.approvalsUpdated = 0;
             backupData.data.virementRequests.forEach(cloudRequest => {
+                // Never resurrect a deleted request
+                if (cloudRequest.id && deletedRequestIds.has(cloudRequest.id)) return;
                 if (!(cloudRequest.id in localMap)) {
                     // New request from cloud — add it
                     virementRequests.push(cloudRequest);
