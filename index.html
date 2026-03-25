@@ -2927,7 +2927,18 @@ function loadBudgetForQuarter() {
 
     if (cached && cached.budget && Object.keys(cached.budget).length > 0) {
         const sourceBudget = cached.budget;
-        const transactions = cached.transactions || [];
+        const allCachedTxns = cached.transactions || [];
+
+        // Filter transactions to only include those belonging to the active quarter.
+        // This prevents cross-quarter data leakage when the Cashbook backup contains
+        // mixed-quarter transactions under a single quarter key.
+        const transactions = allCachedTxns.filter(t => {
+            const txDate = t.date || t.transactionDate || t.dt;
+            if (!txDate) return true; // Keep undated transactions
+            const fqInfo = getFYQuarterFromDate(txDate);
+            if (!fqInfo) return true; // Keep unparseable dates
+            return fqInfo.fy === virementActiveFY && fqInfo.q === virementActiveQ;
+        });
 
         // Calculate actual spend per category from transactions
         const catSpend = {};
@@ -3066,7 +3077,17 @@ async function syncBudgetFromCashbook() {
                 // Transaction key: "cestis_quarter_YYYY/YYYY+1_QN"
                 const txKey = key.replace('cestis_budget_', 'cestis_quarter_');
                 const txData = qTransactions[txKey];
-                const txList = (txData && txData.transactions) ? txData.transactions : [];
+                const txListRaw = (txData && txData.transactions) ? txData.transactions : [];
+
+                // Filter transactions to only those matching this quarter's date range
+                const cacheQ = budgetKeyMatch ? parseInt(budgetKeyMatch[2]) : null;
+                const cacheFY = budgetKeyMatch ? budgetKeyMatch[1] : null;
+                const txList = (cacheQ && cacheFY) ? txListRaw.filter(t => {
+                    const txDate = t.date || t.transactionDate || t.dt;
+                    if (!txDate) return true;
+                    const fqInfo = getFYQuarterFromDate(txDate);
+                    return !fqInfo || (fqInfo.fy === cacheFY && fqInfo.q === cacheQ);
+                }) : txListRaw;
 
                 cloudQuarterCache[cacheKey] = {
                     budget: qBudget,
@@ -3138,6 +3159,18 @@ async function syncBudgetFromCashbook() {
                 } else {
                     const simpleQ = key.match(/Q?(\d)/i);
                     if (simpleQ) cacheKey = cloudFY + '_Q' + simpleQ[1];
+                }
+
+                // Filter transactions to only those matching the target quarter
+                const s2Match = cacheKey.match(/(\d{4}\/\d{4})_Q(\d)/);
+                if (s2Match && qTxList.length > 0) {
+                    const tgtFY = s2Match[1], tgtQ = parseInt(s2Match[2]);
+                    qTxList = qTxList.filter(t => {
+                        const txDate = t.date || t.transactionDate || t.dt;
+                        if (!txDate) return true;
+                        const fqInfo = getFYQuarterFromDate(txDate);
+                        return !fqInfo || (fqInfo.fy === tgtFY && fqInfo.q === tgtQ);
+                    });
                 }
 
                 if (!quartersPopulated.includes(cacheKey) && (Object.keys(qBudget).length > 0 || qTxList.length > 0)) {
