@@ -1378,6 +1378,8 @@ let budgetData = Object.values(CASHBOOK_CATEGORY_MAP).map(m => ({
 }));
 
 let virementRequests = [];
+let deletedRequestIds = new Set(); // Track deleted IDs so merges never resurrect them
+const DELETED_IDS_KEY = 'cesti_virement_deleted_ids';
 let currentModalIdx = -1;
 let editingVirementIdx = -1; // -1 means not editing; >= 0 means editing that index
 
@@ -2190,6 +2192,8 @@ function showDetail(idx){
 function closeModal(){ document.getElementById('detailModal').classList.remove('show'); }
 function deleteCurrentVirement(){
     if(currentModalIdx>=0 && confirm('Delete this virement request?')){
+        const removed = virementRequests[currentModalIdx];
+        if (removed && removed.id) deletedRequestIds.add(removed.id);
         virementRequests.splice(currentModalIdx,1);
         saveAllData(); renderRequests(); renderBudgetOverview(); closeModal();
     }
@@ -2553,6 +2557,8 @@ function saveAllData(){
                     virementRequests.forEach((r, i) => { if (r.id) memoryMap[r.id] = i; });
                     persisted.forEach(r => {
                         if (!r.id) return;
+                        // Never resurrect a deleted request
+                        if (deletedRequestIds.has(r.id)) return;
                         if (!(r.id in memoryMap)) {
                             // New request from another tab — add it
                             virementRequests.push(r);
@@ -2572,6 +2578,8 @@ function saveAllData(){
             } catch (_) { /* stored data corrupt — we'll overwrite it */ }
         }
         localStorage.setItem('cesti_virements', JSON.stringify(virementRequests));
+        // Persist deleted IDs alongside the data
+        localStorage.setItem(DELETED_IDS_KEY, JSON.stringify([...deletedRequestIds]));
     } catch (e) {
         console.error('saveAllData failed:', e);
         // Surface quota / write errors to the user so data loss doesn't go unnoticed
@@ -2588,6 +2596,11 @@ function loadAllData(){
     } catch(e){
         console.error('loadAllData failed:', e);
     }
+    // Load deleted IDs so we never resurrect them during merges
+    try {
+        const savedDeleted = localStorage.getItem(DELETED_IDS_KEY);
+        if (savedDeleted) deletedRequestIds = new Set(JSON.parse(savedDeleted));
+    } catch(e){ /* ignore corrupt data */ }
 }
 
 // ── Form-draft autosave ──────────────────────────────────
@@ -3470,12 +3483,117 @@ function initializeCloudSync() {
             updateCloudUI(true);
             // Re-lookup the backup file in the configured folder to ensure
             // cloudFileId points to the correct folder (not a stale cached ID)
-            findExistingBackupFile();
+            findExistingBackupFile().then(() => {
+                // Auto-pull cloud data on page load so other computers
+                // always start with the latest data
+                autoMergeFromCloudOnLoad();
+            });
             return;
         }
     }
 
     updateCloudUI(false);
+}
+
+// Silently merge cloud data into local storage on page load / connect.
+// This ensures that opening the app on another computer (empty localStorage)
+// automatically pulls the shared data without any user action.
+async function autoMergeFromCloudOnLoad() {
+    if (!isCloudConnected || !googleAccessToken || !cloudFileId) return;
+    try {
+        const response = await fetch(
+            `https://www.googleapis.com/drive/v3/files/${cloudFileId}?alt=media`,
+            { headers: { 'Authorization': `Bearer ${googleAccessToken}` } }
+        );
+        if (!response.ok) return;
+        const backupData = await response.json();
+        if (!backupData.data || !backupData.version) return;
+
+        let changed = false;
+
+        // Merge deleted IDs from cloud so we respect deletions from other devices
+        if (Array.isArray(backupData.data.deletedRequestIds)) {
+            backupData.data.deletedRequestIds.forEach(id => deletedRequestIds.add(id));
+            // Remove any locally-held requests that were deleted on another device
+            const beforeLen = virementRequests.length;
+            virementRequests = virementRequests.filter(r => !r.id || !deletedRequestIds.has(r.id));
+            if (virementRequests.length !== beforeLen) changed = true;
+        }
+
+        if (backupData.data.virementRequests) {
+            const cloudRequests = backupData.data.virementRequests;
+            const localMap = {};
+            virementRequests.forEach((r, i) => { if (r.id) localMap[r.id] = i; });
+
+            cloudRequests.forEach(cr => {
+                if (!cr.id) return;
+                // Never resurrect a deleted request
+                if (deletedRequestIds.has(cr.id)) return;
+                if (!(cr.id in localMap)) {
+                    // Cloud request not in local — add it
+                    virementRequests.push(cr);
+                    changed = true;
+                } else {
+                    // Sync approval state: cloud approval wins over local pending
+                    const local = virementRequests[localMap[cr.id]];
+                    const cloudHasApproval = cr.status === 'Approved' || cr.status === 'Rejected';
+                    const localIsPending = local.status === 'Pending';
+                    const cloudDateNewer = cr.approvalDate && (!local.approvalDate || cr.approvalDate > local.approvalDate);
+                    if (cloudHasApproval && (localIsPending || cloudDateNewer)) {
+                        local.status = cr.status;
+                        local.approvedBy = cr.approvedBy;
+                        local.approvalDate = cr.approvalDate;
+                        local.approvalComment = cr.approvalComment;
+                        changed = true;
+                    }
+                }
+            });
+        }
+
+        // Restore budget data if local is missing it
+        if (backupData.data.cloudQuarterCache && typeof backupData.data.cloudQuarterCache === 'object') {
+            Object.keys(backupData.data.cloudQuarterCache).forEach(key => {
+                if (!cloudQuarterCache[key] || !cloudQuarterCache[key].budget || Object.keys(cloudQuarterCache[key].budget).length === 0) {
+                    cloudQuarterCache[key] = backupData.data.cloudQuarterCache[key];
+                    changed = true;
+                }
+            });
+            if (changed) saveCloudCache();
+        }
+
+        // Restore active FY/Q if local has no data
+        if (backupData.data.activeFY && virementRequests.length > 0) {
+            virementActiveFY = backupData.data.activeFY;
+            if (backupData.data.activeQ) virementActiveQ = backupData.data.activeQ;
+            document.querySelectorAll('.quarter-tab-btn').forEach((btn, i) => {
+                btn.classList.toggle('active', i + 1 === virementActiveQ);
+            });
+            populateFYSelector();
+        }
+
+        if (changed) {
+            saveAllData();
+            loadBudgetForQuarter();
+            updateVirementPeriod();
+            updateQuarterTabIndicators();
+            renderBudgetOverview();
+            renderRequests();
+            renderPrintPreview();
+            if (adminUnlocked) renderAdminApprovals();
+
+            lastSyncTime = new Date();
+            localStorage.setItem('schoolDashboardLastSyncTime', lastSyncTime.toISOString());
+            updateLastSyncDisplay();
+
+            lastSavedBy = backupData.savedBy || 'Unknown';
+            cloudFileTimestamp = backupData.timestamp;
+            updateLastSavedByDisplay();
+
+            console.log('Auto-merge from cloud: data restored successfully');
+        }
+    } catch (e) {
+        console.warn('Auto-merge from cloud skipped:', e.message);
+    }
 }
 
 // Update cloud UI based on connection status
@@ -3712,6 +3830,9 @@ async function submitGoogleToken() {
 
         await findExistingBackupFile();
 
+        // Auto-pull cloud data so this computer has the latest
+        await autoMergeFromCloudOnLoad();
+
         // Auto-sync budget data from Cashbook after connecting
         autoSyncCashbookOnConnect();
 
@@ -3733,6 +3854,9 @@ async function handleGoogleAuthCallback(tokenResponse) {
     updateCloudUI(true);
 
     await findExistingBackupFile();
+
+    // Auto-pull cloud data so this computer has the latest
+    await autoMergeFromCloudOnLoad();
 
     // Auto-sync budget data from Cashbook after connecting
     autoSyncCashbookOnConnect();
@@ -3877,11 +4001,19 @@ async function saveToCloud() {
                 );
                 if (preMergeResp.ok) {
                     const cloudData = await preMergeResp.json();
+                    // Merge cloud deleted IDs so we respect deletions from other devices
+                    if (cloudData.data && Array.isArray(cloudData.data.deletedRequestIds)) {
+                        cloudData.data.deletedRequestIds.forEach(id => deletedRequestIds.add(id));
+                        // Remove any locally-held requests that were deleted on another device
+                        virementRequests = virementRequests.filter(r => !r.id || !deletedRequestIds.has(r.id));
+                    }
                     if (cloudData.data && cloudData.data.virementRequests) {
                         const localMap = {};
                         virementRequests.forEach((r, i) => { if (r.id) localMap[r.id] = i; });
                         cloudData.data.virementRequests.forEach(cr => {
                             if (!cr.id) return;
+                            // Never resurrect a deleted request
+                            if (deletedRequestIds.has(cr.id)) return;
                             if (!(cr.id in localMap)) {
                                 // New request from cloud — include it in save
                                 virementRequests.push(cr);
@@ -3903,16 +4035,31 @@ async function saveToCloud() {
                 }
             } catch (mergeErr) {
                 console.warn('Pre-save cloud merge skipped:', mergeErr);
+                // If pre-merge failed AND local data is empty, abort save to
+                // prevent wiping out the cloud backup with nothing
+                if (virementRequests.length === 0) {
+                    setCloudSyncing(false);
+                    alert('❌ Cannot save to cloud: your local data is empty and we could not verify the cloud backup.\n\nPlease click "Sync from Cloud" first to restore your data, then try saving again.');
+                    return;
+                }
             }
+        }
+
+        // Final safety check: never overwrite a cloud backup with empty data
+        if (virementRequests.length === 0) {
+            setCloudSyncing(false);
+            alert('❌ Cannot save to cloud: you have no virement requests locally.\n\nPlease click "Sync from Cloud" first to restore your data, then try saving again.');
+            return;
         }
 
         const savedByName = 'Dashboard User';
         const backupData = {
-            version: '1.1',
+            version: '1.2',
             timestamp: new Date().toISOString(),
             savedBy: savedByName,
             data: {
                 virementRequests: virementRequests,
+                deletedRequestIds: [...deletedRequestIds],
                 cloudQuarterCache: cloudQuarterCache,
                 activeFY: virementActiveFY,
                 activeQ: virementActiveQ
@@ -4057,15 +4204,20 @@ async function syncFromCloud() {
             throw new Error('Invalid backup file format');
         }
 
+        // Merge deleted IDs from cloud so we respect deletions from other devices
+        if (Array.isArray(backupData.data.deletedRequestIds)) {
+            backupData.data.deletedRequestIds.forEach(id => deletedRequestIds.add(id));
+        }
+
         if (backupData.data.virementRequests) {
             // Smart merge: cloud data wins for matching records, but
             // preserve any local-only requests not yet in the cloud
-            const cloudRequests = backupData.data.virementRequests;
+            const cloudRequests = backupData.data.virementRequests.filter(r => !r.id || !deletedRequestIds.has(r.id));
             const cloudMap = {};
             cloudRequests.forEach(r => { if (r.id) cloudMap[r.id] = r; });
 
-            // Keep local-only requests (not present in cloud)
-            const localOnly = virementRequests.filter(r => r.id && !(r.id in cloudMap));
+            // Keep local-only requests (not present in cloud), excluding deleted
+            const localOnly = virementRequests.filter(r => r.id && !(r.id in cloudMap) && !deletedRequestIds.has(r.id));
 
             // For requests in both: prefer the one with the most recent
             // approval action, falling back to the cloud version
@@ -4189,12 +4341,23 @@ async function mergeFromCloud() {
 
         let mergeStats = { requestsAdded: 0, quartersAdded: 0 };
 
+        // Merge deleted IDs from cloud so we respect deletions from other devices
+        if (Array.isArray(backupData.data.deletedRequestIds)) {
+            backupData.data.deletedRequestIds.forEach(id => deletedRequestIds.add(id));
+            // Remove any locally-held requests that were deleted on another device
+            const beforeCount = virementRequests.length;
+            virementRequests = virementRequests.filter(r => !r.id || !deletedRequestIds.has(r.id));
+            mergeStats.deletionsApplied = beforeCount - virementRequests.length;
+        }
+
         // Merge virement requests - add new cloud requests AND sync approval status updates
         if (backupData.data.virementRequests) {
             const localMap = {};
             virementRequests.forEach((r, i) => { if (r.id) localMap[r.id] = i; });
             mergeStats.approvalsUpdated = 0;
             backupData.data.virementRequests.forEach(cloudRequest => {
+                // Never resurrect a deleted request
+                if (cloudRequest.id && deletedRequestIds.has(cloudRequest.id)) return;
                 if (!(cloudRequest.id in localMap)) {
                     // New request from cloud — add it
                     virementRequests.push(cloudRequest);
