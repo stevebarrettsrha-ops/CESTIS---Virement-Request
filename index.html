@@ -2123,6 +2123,40 @@ function getAllLineOptions(){
     }).join('');
 }
 
+// Refresh all existing virement dropdowns when budgetData changes
+function refreshVirementDropdowns() {
+    // Update Fund Transfer Lines (Surplus → Deficit)
+    document.querySelectorAll('#virementLines .virement-entry').forEach(entry => {
+        const fromSelect = entry.querySelector('.vl-from');
+        const toSelect = entry.querySelector('.vl-to');
+        if (fromSelect) {
+            const curVal = fromSelect.value;
+            fromSelect.innerHTML = getLineOptions('from');
+            fromSelect.value = curVal;
+        }
+        if (toSelect) {
+            const curVal = toSelect.value;
+            toSelect.innerHTML = getLineOptions('to');
+            toSelect.value = curVal;
+        }
+    });
+    // Update Any-Line Transfers (Surplus → Any)
+    document.querySelectorAll('#virementAnyLines .virement-entry').forEach(entry => {
+        const fromSelect = entry.querySelector('.vl-from');
+        const toSelect = entry.querySelector('.vl-to');
+        if (fromSelect) {
+            const curVal = fromSelect.value;
+            fromSelect.innerHTML = getLineOptions('from');
+            fromSelect.value = curVal;
+        }
+        if (toSelect) {
+            const curVal = toSelect.value;
+            toSelect.innerHTML = getAllLineOptions();
+            toSelect.value = curVal;
+        }
+    });
+}
+
 function addVirementLine(){
     let container = document.getElementById('virementLines');
     let div = document.createElement('div');
@@ -2551,19 +2585,26 @@ function printVirements(){
 let virementLogoDataURL = localStorage.getItem('cesti_virement_logo') || '';
 
 function openVirementLivePreview() {
-    const overlay = document.getElementById('vlpOverlay');
-    const select = document.getElementById('vlpRequestSelect');
-    const quarterRequests = getActiveQuarterRequests();
+    var overlay = document.getElementById('vlpOverlay');
+    var select = document.getElementById('vlpRequestSelect');
+    if (!overlay || !select) {
+        alert('Live Preview elements not found. Please refresh the page.');
+        return;
+    }
+    var quarterRequests = getActiveQuarterRequests();
 
     // Populate request dropdown
     if (quarterRequests.length === 0) {
         select.innerHTML = '<option value="">No requests for this quarter</option>';
     } else {
-        select.innerHTML = '<option value="all">All Requests</option>' +
-            quarterRequests.map((r, i) => {
-                const displayDate = r.date ? new Date(r.date + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
-                return `<option value="${i}">#${r.id.slice(-4)} — ${fmt(r.total)} — ${displayDate}</option>`;
-            }).join('');
+        var opts = '<option value="all">All Requests</option>';
+        for (var i = 0; i < quarterRequests.length; i++) {
+            var r = quarterRequests[i];
+            var displayDate = r.date ? new Date(r.date + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+            var idStr = r.id ? r.id.slice(-4) : (i + 1);
+            opts += '<option value="' + i + '">#' + idStr + ' — ' + fmt(r.total) + ' — ' + displayDate + '</option>';
+        }
+        select.innerHTML = opts;
     }
 
     overlay.classList.add('open');
@@ -3553,6 +3594,7 @@ function loadBudgetForQuarter() {
             budgetData = newBudgetData;
             budgetDataSource = 'cashbook-cloud';
             updateQuarterDisplay();
+            refreshVirementDropdowns();
             return true;
         }
     }
@@ -3566,6 +3608,7 @@ function loadBudgetForQuarter() {
     }));
     budgetDataSource = 'no-data';
     updateQuarterDisplay();
+    refreshVirementDropdowns();
     return false;
 }
 
