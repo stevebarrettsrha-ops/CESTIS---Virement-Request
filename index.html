@@ -3586,10 +3586,47 @@ async function autoMergeFromCloudOnLoad() {
             if (changed) saveCloudCache();
         }
 
-        // Restore active FY/Q if local has no data
-        if (backupData.data.activeFY && virementRequests.length > 0) {
-            virementActiveFY = backupData.data.activeFY;
-            if (backupData.data.activeQ) virementActiveQ = backupData.data.activeQ;
+        // Restore active FY/Q from cloud backup and smart-navigate to
+        // the quarter that actually has data (prevents showing an empty
+        // quarter after the fiscal year rolls over).
+        if (virementRequests.length > 0) {
+            const prevFY = virementActiveFY;
+            const prevQ = virementActiveQ;
+
+            // Start with the cloud's stored FY/Q as a baseline
+            if (backupData.data.activeFY) {
+                virementActiveFY = backupData.data.activeFY;
+                if (backupData.data.activeQ) virementActiveQ = backupData.data.activeQ;
+            }
+
+            // Smart navigation: if the restored quarter has no requests,
+            // find the quarter with the most recent virement data
+            const restoredHasRequests = virementRequests.some(r =>
+                (r.fy || '2025/2026') === virementActiveFY &&
+                (r.quarter || 3) === virementActiveQ
+            );
+            if (!restoredHasRequests) {
+                // Find the most recent request to determine best quarter
+                let bestDate = '';
+                let bestFY = virementActiveFY;
+                let bestQ = virementActiveQ;
+                virementRequests.forEach(r => {
+                    const rDate = r.date || '';
+                    if (rDate > bestDate) {
+                        bestDate = rDate;
+                        bestFY = r.fy || '2025/2026';
+                        bestQ = r.quarter || 3;
+                    }
+                });
+                virementActiveFY = bestFY;
+                virementActiveQ = bestQ;
+            }
+
+            // Track whether FY/Q changed so we know to re-render
+            if (virementActiveFY !== prevFY || virementActiveQ !== prevQ) {
+                changed = true;
+            }
+
             document.querySelectorAll('.quarter-tab-btn').forEach((btn, i) => {
                 btn.classList.toggle('active', i + 1 === virementActiveQ);
             });
@@ -4080,6 +4117,24 @@ async function saveToCloud() {
         // Deduplicate before pushing to cloud
         deduplicateRequests();
 
+        // Determine the best FY/Q to store: prefer the quarter that
+        // actually has requests so other devices open to the right view.
+        let saveFY = virementActiveFY;
+        let saveQ = virementActiveQ;
+        const activeHasRequests = virementRequests.some(r =>
+            (r.fy || '2025/2026') === saveFY && (r.quarter || 3) === saveQ);
+        if (!activeHasRequests && virementRequests.length > 0) {
+            let bestDate = '';
+            virementRequests.forEach(r => {
+                const rDate = r.date || '';
+                if (rDate > bestDate) {
+                    bestDate = rDate;
+                    saveFY = r.fy || '2025/2026';
+                    saveQ = r.quarter || 3;
+                }
+            });
+        }
+
         const savedByName = 'Dashboard User';
         const backupData = {
             version: '1.2',
@@ -4089,8 +4144,8 @@ async function saveToCloud() {
                 virementRequests: virementRequests,
                 deletedRequestIds: [...deletedRequestIds],
                 cloudQuarterCache: cloudQuarterCache,
-                activeFY: virementActiveFY,
-                activeQ: virementActiveQ
+                activeFY: saveFY,
+                activeQ: saveQ
             }
         };
 
@@ -4270,16 +4325,39 @@ async function syncFromCloud() {
             saveCloudCache();
         }
 
-        // Restore active FY/Q from backup if present
+        // Restore active FY/Q from backup, then smart-navigate to a
+        // quarter that actually has requests (prevents landing on an
+        // empty quarter when the fiscal year has rolled over).
         if (backupData.data.activeFY) {
             virementActiveFY = backupData.data.activeFY;
             const navQ = backupData.data.activeQ || virementActiveQ;
             virementActiveQ = navQ;
-            document.querySelectorAll('.quarter-tab-btn').forEach((btn, i) => {
-                btn.classList.toggle('active', i + 1 === navQ);
-            });
-            populateFYSelector();
         }
+        if (virementRequests.length > 0) {
+            const hasRequests = virementRequests.some(r =>
+                (r.fy || '2025/2026') === virementActiveFY &&
+                (r.quarter || 3) === virementActiveQ
+            );
+            if (!hasRequests) {
+                let bestDate = '';
+                let bestFY = virementActiveFY;
+                let bestQ = virementActiveQ;
+                virementRequests.forEach(r => {
+                    const rDate = r.date || '';
+                    if (rDate > bestDate) {
+                        bestDate = rDate;
+                        bestFY = r.fy || '2025/2026';
+                        bestQ = r.quarter || 3;
+                    }
+                });
+                virementActiveFY = bestFY;
+                virementActiveQ = bestQ;
+            }
+        }
+        document.querySelectorAll('.quarter-tab-btn').forEach((btn, i) => {
+            btn.classList.toggle('active', i + 1 === virementActiveQ);
+        });
+        populateFYSelector();
 
         // Reload budget from cloud cache
         loadBudgetForQuarter();
