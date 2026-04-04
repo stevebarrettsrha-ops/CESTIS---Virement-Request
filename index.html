@@ -610,6 +610,141 @@
             width: 14px; height: 14px; border-radius: 3px;
         }
 
+        /* ─── VIREMENT LIVE PRINT PREVIEW ─── */
+        .vlp-overlay {
+            display: none; position: fixed; inset: 0; z-index: 300;
+            background: #1a1a2e; flex-direction: column;
+        }
+        .vlp-overlay.open { display: flex; }
+        .vlp-toolbar {
+            display: flex; align-items: center; gap: 0.75rem;
+            padding: 0.6rem 1.25rem;
+            background: linear-gradient(135deg, #dc2626, #b91c1c);
+            border-bottom: 2px solid #991b1b;
+            flex-shrink: 0; flex-wrap: wrap;
+        }
+        .vlp-toolbar-title {
+            font-size: 0.88rem; font-weight: 700; color: white;
+            display: flex; align-items: center; gap: 0.5rem;
+            margin-right: 0.5rem;
+        }
+        .vlp-toolbar select {
+            padding: 0.35rem 0.5rem; border-radius: 4px; border: 1px solid rgba(255,255,255,0.3);
+            background: rgba(0,0,0,0.2); color: white; font-family: inherit;
+            font-size: 0.78rem; cursor: pointer;
+        }
+        .vlp-toolbar select option { background: #1a1a2e; color: white; }
+        .vlp-toolbar-btn {
+            padding: 0.4rem 0.85rem; border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 4px; background: rgba(255,255,255,0.1);
+            color: white; font-family: inherit; font-size: 0.78rem;
+            font-weight: 600; cursor: pointer; transition: all 0.2s;
+        }
+        .vlp-toolbar-btn:hover { background: rgba(255,255,255,0.2); }
+        .vlp-toolbar-btn.primary {
+            background: #dc2626; border-color: #fca5a5;
+        }
+        .vlp-toolbar-btn.primary:hover { background: #ef4444; }
+        .vlp-toolbar-btn.close-btn {
+            background: rgba(255,255,255,0.15); margin-left: auto;
+        }
+        .vlp-toolbar-btn.close-btn:hover { background: rgba(255,255,255,0.3); }
+        .vlp-body {
+            flex: 1; overflow-y: auto; padding: 2rem;
+            display: flex; justify-content: center;
+            background: #2d2d44;
+        }
+        .vlp-form-page {
+            background: white; color: #111; width: 800px; min-height: 1000px;
+            padding: 2.5rem 2.5rem 3rem; box-shadow: 0 8px 40px rgba(0,0,0,0.5);
+            font-family: 'Times New Roman', Times, serif; position: relative;
+        }
+        .vlp-form-page .vlp-logo {
+            position: absolute; top: 2rem; left: 2rem;
+            max-width: 90px; max-height: 90px; object-fit: contain;
+        }
+        .vlp-form-header {
+            text-align: center; margin-bottom: 1.5rem;
+            padding-bottom: 0.75rem;
+        }
+        .vlp-form-header h1 {
+            font-size: 1rem; font-weight: bold; margin-bottom: 0.1rem;
+            font-family: 'Times New Roman', Times, serif; text-decoration: underline;
+        }
+        .vlp-form-header h2 {
+            font-size: 0.95rem; font-weight: bold;
+            font-family: 'Times New Roman', Times, serif;
+        }
+        .vlp-form-header h3 {
+            font-size: 0.95rem; font-weight: bold; margin-top: 0.75rem;
+            font-family: 'Times New Roman', Times, serif; text-decoration: underline;
+        }
+        .vlp-form-body {
+            font-size: 0.88rem; line-height: 1.8;
+        }
+        .vlp-form-body p { margin-bottom: 0.3rem; }
+        .vlp-form-body .vlp-underline {
+            text-decoration: underline; font-weight: bold;
+        }
+        .vlp-form-table {
+            width: 100%; border-collapse: collapse; margin: 0.75rem 0;
+        }
+        .vlp-form-table th, .vlp-form-table td {
+            padding: 0.4rem 0.6rem; font-size: 0.82rem;
+            font-family: 'Times New Roman', Times, serif;
+        }
+        .vlp-form-table th {
+            text-decoration: underline; font-weight: bold;
+            text-align: left; border-bottom: 1px solid #000;
+        }
+        .vlp-form-table td {
+            border-bottom: 1px solid #333;
+        }
+        .vlp-form-table td.amount-col {
+            text-align: center;
+        }
+        .vlp-total-line {
+            font-weight: bold; font-size: 0.95rem;
+            text-align: center; margin: 1.5rem 0;
+        }
+        .vlp-signature-section {
+            margin-top: 2rem; font-size: 0.85rem; line-height: 2.2;
+        }
+        .vlp-sig-line {
+            display: inline-block; border-bottom: 1px solid #000;
+            min-width: 150px; margin: 0 0.5rem;
+        }
+        .vlp-sig-row {
+            display: flex; align-items: baseline; gap: 0.5rem; margin-bottom: 0.25rem;
+        }
+        .vlp-sig-labels {
+            display: flex; gap: 0; margin-top: -0.3rem; margin-bottom: 0.75rem;
+            padding-left: 7rem;
+        }
+        .vlp-sig-labels span {
+            font-size: 0.72rem; font-style: italic; text-align: center;
+        }
+        .vlp-approval-stamp {
+            margin-top: 1rem; padding: 0.6rem 0.8rem;
+            border: 2px solid; border-radius: 4px; font-size: 0.82rem;
+        }
+        .vlp-approval-stamp.approved { border-color: #059669; color: #059669; }
+        .vlp-approval-stamp.rejected { border-color: #e11d48; color: #e11d48; }
+        .vlp-approval-stamp.pending { border-color: #d97706; color: #d97706; border-style: dashed; }
+        .vlp-version-footer {
+            font-size: 0.62rem; font-style: italic; color: #666;
+            margin-top: 2rem;
+        }
+        /* Hide overlay during print but show form */
+        @media print {
+            .vlp-overlay.open { position: static !important; display: block !important; background: none !important; }
+            .vlp-overlay:not(.open) { display: none !important; }
+            .vlp-toolbar { display: none !important; }
+            .vlp-body { padding: 0 !important; background: none !important; overflow: visible !important; }
+            .vlp-form-page { box-shadow: none !important; width: 100% !important; padding: 1.5rem !important; page-break-after: always; margin-bottom: 0 !important; }
+            .vlp-form-page:last-child { page-break-after: auto; }
+        }
+
         /* ─── RESPONSIVE ─── */
         @media (max-width:900px) {
             .chart-grid { grid-template-columns: 1fr; }
@@ -1168,9 +1303,12 @@
 
 <!-- ─── TAB 4: PRINT PREVIEW ─── -->
 <div id="tab-preview" class="tab-panel">
-    <div class="no-print" style="text-align:center;margin-bottom:1.5rem;">
+    <div class="no-print" style="text-align:center;margin-bottom:1.5rem;display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;">
+        <button class="btn-gold" onclick="openVirementLivePreview()" style="padding:0.75rem 2rem;font-size:0.9rem;">📄 Live Preview Virement</button>
         <button class="btn-gold" onclick="printVirements()" style="padding:0.75rem 2rem;font-size:0.9rem;">🖨️ Print All Virement Forms / Save as PDF</button>
-        <p style="font-size:0.75rem;color:var(--text-dim);margin-top:0.5rem;">Each virement request generates a separate form page matching the official C.E.S.T.I.S format.</p>
+    </div>
+    <div class="no-print" style="text-align:center;margin-bottom:1.5rem;">
+        <p style="font-size:0.75rem;color:var(--text-dim);">Use <strong>Live Preview</strong> to view the official virement form with logo support, or <strong>Print All</strong> to batch-print all requests.</p>
     </div>
     <div id="printPreviewArea" class="print-frame"></div>
 </div>
@@ -1236,6 +1374,23 @@
 </div>
 
 </div><!-- /main -->
+
+<!-- ═══════════════ VIREMENT LIVE PRINT PREVIEW OVERLAY ═══════════════ -->
+<div class="vlp-overlay" id="vlpOverlay">
+    <div class="vlp-toolbar">
+        <span class="vlp-toolbar-title">📄 Live Preview Virement</span>
+        <span style="color:rgba(255,255,255,0.7);font-size:0.78rem;">Request:</span>
+        <select id="vlpRequestSelect" onchange="renderVirementFormPreview()"></select>
+        <button class="vlp-toolbar-btn" onclick="uploadVirementLogo()">Upload Logo</button>
+        <button class="vlp-toolbar-btn" onclick="removeVirementLogo()">Remove Logo</button>
+        <button class="vlp-toolbar-btn primary" onclick="printVirementFormPreview()">Print / Save PDF</button>
+        <button class="vlp-toolbar-btn close-btn" onclick="closeVirementLivePreview()">Close</button>
+    </div>
+    <div class="vlp-body">
+        <div id="vlpFormContainer"></div>
+    </div>
+</div>
+<input type="file" id="vlpLogoInput" accept="image/*" style="display:none;" onchange="handleVirementLogoUpload(event)">
 
 <!-- ═══════════════ DETAIL MODAL ═══════════════ -->
 <div class="modal-overlay" id="detailModal">
@@ -2387,6 +2542,222 @@ function printVirements(){
     document.getElementById('tab-preview').classList.add('active');
     document.getElementById('tab-preview').classList.add('print-active');
     setTimeout(()=>window.print(), 200);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  VIREMENT LIVE PRINT PREVIEW
+// ═══════════════════════════════════════════════════════════
+let virementLogoDataURL = localStorage.getItem('cesti_virement_logo') || '';
+
+function openVirementLivePreview() {
+    const overlay = document.getElementById('vlpOverlay');
+    const select = document.getElementById('vlpRequestSelect');
+    const quarterRequests = getActiveQuarterRequests();
+
+    // Populate request dropdown
+    if (quarterRequests.length === 0) {
+        select.innerHTML = '<option value="">No requests for this quarter</option>';
+    } else {
+        select.innerHTML = '<option value="all">All Requests</option>' +
+            quarterRequests.map((r, i) => {
+                const displayDate = r.date ? new Date(r.date + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+                return `<option value="${i}">#${r.id.slice(-4)} — ${fmt(r.total)} — ${displayDate}</option>`;
+            }).join('');
+    }
+
+    overlay.classList.add('open');
+    document.body.style.overflow = 'hidden';
+    renderVirementFormPreview();
+}
+
+function closeVirementLivePreview() {
+    document.getElementById('vlpOverlay').classList.remove('open');
+    document.body.style.overflow = '';
+}
+
+// Close on Escape key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && document.getElementById('vlpOverlay').classList.contains('open')) {
+        closeVirementLivePreview();
+    }
+});
+
+function uploadVirementLogo() {
+    document.getElementById('vlpLogoInput').click();
+}
+
+function handleVirementLogoUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        virementLogoDataURL = e.target.result;
+        localStorage.setItem('cesti_virement_logo', virementLogoDataURL);
+        renderVirementFormPreview();
+    };
+    reader.readAsDataURL(file);
+    event.target.value = '';
+}
+
+function removeVirementLogo() {
+    virementLogoDataURL = '';
+    localStorage.removeItem('cesti_virement_logo');
+    renderVirementFormPreview();
+}
+
+function renderVirementFormPreview() {
+    const container = document.getElementById('vlpFormContainer');
+    const select = document.getElementById('vlpRequestSelect');
+    const quarterRequests = getActiveQuarterRequests();
+
+    if (quarterRequests.length === 0) {
+        container.innerHTML = '<div style="text-align:center;padding:4rem;color:#999;background:white;width:800px;border-radius:8px;">No virement requests for this quarter to preview.</div>';
+        return;
+    }
+
+    let requestsToRender = [];
+    if (select.value === 'all') {
+        requestsToRender = quarterRequests;
+    } else {
+        const idx = parseInt(select.value);
+        if (!isNaN(idx) && quarterRequests[idx]) {
+            requestsToRender = [quarterRequests[idx]];
+        } else {
+            requestsToRender = quarterRequests;
+        }
+    }
+
+    container.innerHTML = requestsToRender.map(r => buildVirementFormPage(r)).join('');
+}
+
+function buildVirementFormPage(r) {
+    const deficitLines = r.lines.filter(l => !l.anyLine);
+    const anyLines = r.lines.filter(l => l.anyLine);
+
+    const displayDate = r.date ? new Date(r.date + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
+
+    const logoHtml = virementLogoDataURL
+        ? `<img src="${virementLogoDataURL}" class="vlp-logo" alt="Logo">`
+        : '';
+
+    // Build deficit transfer table rows
+    const deficitRows = deficitLines.map(l =>
+        `<tr><td>${l.fromName}</td><td class="amount-col">${fmt(l.amount)}</td><td>${l.toName}</td></tr>`
+    ).join('');
+
+    // Build any-line transfer table rows
+    const anyLineRows = anyLines.map(l =>
+        `<tr><td>${l.fromName}</td><td class="amount-col">${fmt(l.amount)}</td><td>${l.toName}</td></tr>`
+    ).join('');
+
+    const deficitSection = deficitLines.length > 0 ? `
+        <p style="margin-top:0.75rem;">Funds <span class="vlp-underline">Vired</span> will be re-allocated to one or several? as follows:</p>
+        <table class="vlp-form-table">
+            <thead>
+                <tr>
+                    <th>From Line Item(s)</th>
+                    <th style="text-align:center;">Amount</th>
+                    <th>To Line Item(s)</th>
+                </tr>
+            </thead>
+            <tbody>${deficitRows}</tbody>
+        </table>` : '';
+
+    const anyLineSection = anyLines.length > 0 ? `
+        <p style="margin-top:0.75rem;">Funds <span class="vlp-underline">Vired</span> to Other Line Items:</p>
+        <table class="vlp-form-table">
+            <thead>
+                <tr>
+                    <th>From Line Item(s)</th>
+                    <th style="text-align:center;">Amount</th>
+                    <th>To Line Item(s)</th>
+                </tr>
+            </thead>
+            <tbody>${anyLineRows}</tbody>
+        </table>` : '';
+
+    // Approval stamp
+    let approvalHtml = '';
+    if (r.status === 'Approved') {
+        approvalHtml = `<div class="vlp-approval-stamp approved"><strong>✓ APPROVED</strong> by ${r.approvedBy || 'Admin'}${r.approvalDate ? ' — ' + r.approvalDate : ''}${r.approvalComment ? '<br>Comment: ' + r.approvalComment : ''}</div>`;
+    } else if (r.status === 'Rejected') {
+        approvalHtml = `<div class="vlp-approval-stamp rejected"><strong>✗ REJECTED</strong> by ${r.approvedBy || 'Admin'}${r.approvalDate ? ' — ' + r.approvalDate : ''}${r.approvalComment ? '<br>Comment: ' + r.approvalComment : ''}</div>`;
+    } else {
+        approvalHtml = `<div class="vlp-approval-stamp pending"><strong>⏳ PENDING APPROVAL</strong></div>`;
+    }
+
+    return `
+    <div class="vlp-form-page" style="margin-bottom:2rem;">
+        ${logoHtml}
+        <div class="vlp-form-header">
+            <h1>HEART/NSTA TRUST</h1>
+            <h2>COMMUNITY TRAINING INTERVENTION</h2>
+            <h3>REQUEST FOR VIREMENT OF FUNDS</h3>
+        </div>
+        <div class="vlp-form-body">
+            <p><strong>Project</strong>: ${r.project}</p>
+            <p>We are requesting approval to <span class="vlp-underline">vire</span> funds allocated in the ${r.period} subvention.</p>
+            <p>We are seeking approval to move a total of: <span class="vlp-underline">${fmt(r.total)} (${r.totalWords})</span></p>
+            <p style="margin-left:15rem;"><em>Amount in figure</em>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<em>Amount in words</em></p>
+            <p>as per the categories stated below.</p>
+
+            ${deficitSection}
+            ${anyLineSection}
+
+            <div class="vlp-total-line">
+                <strong>Total = ${fmt(r.total)}</strong>
+            </div>
+
+            <p>Regards.</p>
+
+            <div class="vlp-signature-section">
+                <div class="vlp-sig-row">
+                    <strong>Requested by:</strong>
+                    <span class="vlp-sig-line" style="min-width:140px;">${r.requestedBy || ''}</span>
+                    <span class="vlp-sig-line" style="min-width:100px;">${r.position || ''}</span>
+                    <span class="vlp-sig-line" style="min-width:120px;"></span>
+                    <span class="vlp-sig-line" style="min-width:80px;">${displayDate}</span>
+                </div>
+                <div class="vlp-sig-labels">
+                    <span style="min-width:140px;">Name</span>
+                    <span style="min-width:100px;">Position</span>
+                    <span style="min-width:120px;">Signature</span>
+                    <span style="min-width:80px;">Date</span>
+                </div>
+                <div class="vlp-sig-row">
+                    <strong>Approved by:</strong>
+                    <span class="vlp-sig-line" style="min-width:200px;">${r.approvedBy || ''}</span>
+                    <span class="vlp-sig-line" style="min-width:180px;"></span>
+                    <span class="vlp-sig-line" style="min-width:80px;">${r.approvalDate || ''}</span>
+                </div>
+                <div class="vlp-sig-labels" style="padding-left:6.5rem;">
+                    <span style="min-width:200px;">Name</span>
+                    <span style="min-width:180px;">Signature</span>
+                    <span style="min-width:80px;">Date</span>
+                </div>
+            </div>
+
+            ${approvalHtml}
+        </div>
+        <div class="vlp-version-footer">CTI/Virement Request/Version 2.0:05/08/2020</div>
+    </div>`;
+}
+
+function printVirementFormPreview() {
+    const overlay = document.getElementById('vlpOverlay');
+    // Temporarily hide everything else for printing
+    document.querySelectorAll('.tab-panel').forEach(p => {
+        p.classList.remove('active');
+        p.classList.remove('print-active');
+    });
+    document.querySelector('.sticky-nav-wrapper').style.display = 'none';
+    document.querySelector('.main').style.display = 'none';
+    setTimeout(() => {
+        window.print();
+        // Restore after print
+        document.querySelector('.sticky-nav-wrapper').style.display = '';
+        document.querySelector('.main').style.display = '';
+    }, 200);
 }
 
 // ═══════════════════════════════════════════════════════════
