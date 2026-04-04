@@ -610,54 +610,45 @@
             width: 14px; height: 14px; border-radius: 3px;
         }
 
-        /* ─── VIREMENT LIVE PRINT PREVIEW ─── */
-        .vlp-overlay {
-            display: none; position: fixed; inset: 0; z-index: 300;
-            background: #1a1a2e; flex-direction: column;
-        }
-        .vlp-overlay.open { display: flex; }
-        .vlp-toolbar {
+        /* ─── VIREMENT LIVE PRINT PREVIEW (Tab Page) ─── */
+        .vlp-controls {
             display: flex; align-items: center; gap: 0.75rem;
-            padding: 0.6rem 1.25rem;
+            padding: 0.85rem 1.25rem; margin-bottom: 1.5rem; flex-wrap: wrap;
             background: linear-gradient(135deg, #dc2626, #b91c1c);
-            border-bottom: 2px solid #991b1b;
-            flex-shrink: 0; flex-wrap: wrap;
+            border-radius: var(--radius); border: 1px solid #991b1b;
         }
-        .vlp-toolbar-title {
+        .vlp-controls-title {
             font-size: 0.88rem; font-weight: 700; color: white;
-            display: flex; align-items: center; gap: 0.5rem;
             margin-right: 0.5rem;
         }
-        .vlp-toolbar select {
-            padding: 0.35rem 0.5rem; border-radius: 4px; border: 1px solid rgba(255,255,255,0.3);
-            background: rgba(0,0,0,0.2); color: white; font-family: inherit;
+        .vlp-controls select {
+            padding: 0.4rem 0.6rem; border-radius: 4px; border: 1px solid rgba(255,255,255,0.3);
+            background: rgba(0,0,0,0.25); color: white; font-family: inherit;
             font-size: 0.78rem; cursor: pointer;
         }
-        .vlp-toolbar select option { background: #1a1a2e; color: white; }
-        .vlp-toolbar-btn {
-            padding: 0.4rem 0.85rem; border: 1px solid rgba(255,255,255,0.3);
-            border-radius: 4px; background: rgba(255,255,255,0.1);
+        .vlp-controls select option { background: #1a1a2e; color: white; }
+        .vlp-controls-btn {
+            padding: 0.45rem 0.9rem; border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 6px; background: rgba(255,255,255,0.12);
             color: white; font-family: inherit; font-size: 0.78rem;
             font-weight: 600; cursor: pointer; transition: all 0.2s;
         }
-        .vlp-toolbar-btn:hover { background: rgba(255,255,255,0.2); }
-        .vlp-toolbar-btn.primary {
-            background: #dc2626; border-color: #fca5a5;
+        .vlp-controls-btn:hover { background: rgba(255,255,255,0.25); }
+        .vlp-controls-btn.print-btn {
+            background: #dc2626; border-color: #fca5a5; margin-left: auto;
         }
-        .vlp-toolbar-btn.primary:hover { background: #ef4444; }
-        .vlp-toolbar-btn.close-btn {
-            background: rgba(255,255,255,0.15); margin-left: auto;
+        .vlp-controls-btn.print-btn:hover { background: #ef4444; }
+        .vlp-form-area {
+            display: flex; justify-content: center; padding: 2rem;
+            background: #2d2d44; border-radius: var(--radius);
+            min-height: 400px;
         }
-        .vlp-toolbar-btn.close-btn:hover { background: rgba(255,255,255,0.3); }
-        .vlp-body {
-            flex: 1; overflow-y: auto; padding: 2rem;
-            display: flex; justify-content: center;
-            background: #2d2d44;
-        }
+        .vlp-form-area-inner { width: 800px; }
         .vlp-form-page {
-            background: white; color: #111; width: 800px; min-height: 1000px;
+            background: white; color: #111; width: 100%;
             padding: 2.5rem 2.5rem 3rem; box-shadow: 0 8px 40px rgba(0,0,0,0.5);
             font-family: 'Times New Roman', Times, serif; position: relative;
+            margin-bottom: 2rem;
         }
         .vlp-form-page .vlp-logo {
             position: absolute; top: 2rem; left: 2rem;
@@ -735,15 +726,6 @@
             font-size: 0.62rem; font-style: italic; color: #666;
             margin-top: 2rem;
         }
-        /* Hide overlay during print but show form */
-        @media print {
-            .vlp-overlay.open { position: static !important; display: block !important; background: none !important; }
-            .vlp-overlay:not(.open) { display: none !important; }
-            .vlp-toolbar { display: none !important; }
-            .vlp-body { padding: 0 !important; background: none !important; overflow: visible !important; }
-            .vlp-form-page { box-shadow: none !important; width: 100% !important; padding: 1.5rem !important; page-break-after: always; margin-bottom: 0 !important; }
-            .vlp-form-page:last-child { page-break-after: auto; }
-        }
 
         /* ─── RESPONSIVE ─── */
         @media (max-width:900px) {
@@ -756,12 +738,17 @@
         /* ─── PRINT ─── */
         @media print {
             body { background: white; }
-            .topbar, .tab-nav, .no-print { display: none !important; }
+            .topbar, .tab-nav, .no-print, .sticky-nav-wrapper { display: none !important; }
             .main { padding: 0; max-width: 100%; }
             .tab-panel { display: none !important; }
             .tab-panel.print-active { display: block !important; }
             .print-frame { box-shadow: none; border-radius: 0; }
             .print-page { padding: 1.5rem; }
+            /* Virement form print */
+            .vlp-controls { display: none !important; }
+            .vlp-form-area { background: none !important; padding: 0 !important; }
+            .vlp-form-page { box-shadow: none !important; width: 100% !important; padding: 1.5rem !important; page-break-after: always; margin-bottom: 0 !important; }
+            .vlp-form-page:last-child { page-break-after: auto; }
         }
 
         /* ─── QUARTER SELECTOR ─── */
@@ -1093,7 +1080,7 @@
     <div class="topbar-actions no-print">
         <button class="btn-ghost" onclick="saveAllData()">💾 Save</button>
         <button class="btn-ghost" onclick="loadAllData()">📂 Load</button>
-        <button class="btn-emerald" onclick="openVirementLivePreview()">📄 Live Preview Virement</button>
+        <button class="btn-emerald" onclick="goToVirementFormPreview()">📄 Live Preview Virement</button>
         <button class="btn-gold" onclick="printVirements()">🖨️ Print / PDF</button>
         <!-- Cloud Sync Dropdown -->
         <div id="cloudNotConnected">
@@ -1163,6 +1150,7 @@
     <button class="tab-btn" onclick="switchTab('create',this)">✏️ Create Virement</button>
     <button class="tab-btn" onclick="switchTab('requests',this)">📋 Virement Requests</button>
     <button class="tab-btn" onclick="switchTab('preview',this)">🖨️ Print Preview</button>
+    <button class="tab-btn" onclick="switchTab('vlpform',this)">📄 Live Preview Form</button>
     <button class="tab-btn" onclick="switchTab('livepreview',this)">📊 Live Preview</button>
     <button class="tab-btn" onclick="switchTab('admin',this)">🛡️ Admin Approvals</button>
 
@@ -1304,14 +1292,26 @@
 
 <!-- ─── TAB 4: PRINT PREVIEW ─── -->
 <div id="tab-preview" class="tab-panel">
-    <div class="no-print" style="text-align:center;margin-bottom:1.5rem;display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;">
-        <button class="btn-gold" onclick="openVirementLivePreview()" style="padding:0.75rem 2rem;font-size:0.9rem;">📄 Live Preview Virement</button>
-        <button class="btn-gold" onclick="printVirements()" style="padding:0.75rem 2rem;font-size:0.9rem;">🖨️ Print All Virement Forms / Save as PDF</button>
-    </div>
     <div class="no-print" style="text-align:center;margin-bottom:1.5rem;">
-        <p style="font-size:0.75rem;color:var(--text-dim);">Use <strong>Live Preview</strong> to view the official virement form with logo support, or <strong>Print All</strong> to batch-print all requests.</p>
+        <button class="btn-gold" onclick="printVirements()" style="padding:0.75rem 2rem;font-size:0.9rem;">🖨️ Print All Virement Forms / Save as PDF</button>
+        <p style="font-size:0.75rem;color:var(--text-dim);margin-top:0.5rem;">Each virement request generates a separate form page matching the official C.E.S.T.I.S format.</p>
     </div>
     <div id="printPreviewArea" class="print-frame"></div>
+</div>
+
+<!-- ─── TAB: LIVE PREVIEW VIREMENT FORM ─── -->
+<div id="tab-vlpform" class="tab-panel">
+    <div class="vlp-controls no-print">
+        <span class="vlp-controls-title">📄 Live Preview Virement</span>
+        <span style="color:rgba(255,255,255,0.7);font-size:0.78rem;">Request:</span>
+        <select id="vlpRequestSelect" onchange="renderVirementFormPreview()"></select>
+        <button class="vlp-controls-btn" onclick="uploadVirementLogo()">Upload Logo</button>
+        <button class="vlp-controls-btn" onclick="removeVirementLogo()">Remove Logo</button>
+        <button class="vlp-controls-btn print-btn" onclick="printVirementFormPreview()">🖨️ Print / Save PDF</button>
+    </div>
+    <div class="vlp-form-area">
+        <div class="vlp-form-area-inner" id="vlpFormContainer"></div>
+    </div>
 </div>
 
 <!-- ─── TAB 5: ADMIN APPROVALS ─── -->
@@ -1376,21 +1376,6 @@
 
 </div><!-- /main -->
 
-<!-- ═══════════════ VIREMENT LIVE PRINT PREVIEW OVERLAY ═══════════════ -->
-<div class="vlp-overlay" id="vlpOverlay">
-    <div class="vlp-toolbar">
-        <span class="vlp-toolbar-title">📄 Live Preview Virement</span>
-        <span style="color:rgba(255,255,255,0.7);font-size:0.78rem;">Request:</span>
-        <select id="vlpRequestSelect" onchange="renderVirementFormPreview()"></select>
-        <button class="vlp-toolbar-btn" onclick="uploadVirementLogo()">Upload Logo</button>
-        <button class="vlp-toolbar-btn" onclick="removeVirementLogo()">Remove Logo</button>
-        <button class="vlp-toolbar-btn primary" onclick="printVirementFormPreview()">Print / Save PDF</button>
-        <button class="vlp-toolbar-btn close-btn" onclick="closeVirementLivePreview()">Close</button>
-    </div>
-    <div class="vlp-body">
-        <div id="vlpFormContainer"></div>
-    </div>
-</div>
 <input type="file" id="vlpLogoInput" accept="image/*" style="display:none;" onchange="handleVirementLogoUpload(event)">
 
 <!-- ═══════════════ DETAIL MODAL ═══════════════ -->
@@ -1720,6 +1705,7 @@ function switchTab(tab, btn){
     if(tab==='preview') renderPrintPreview();
     if(tab==='overview') renderBudgetOverview();
     if(tab==='livepreview') renderLivePreview();
+    if(tab==='vlpform') { populateVlpRequestSelect(); renderVirementFormPreview(); }
     if(tab==='admin' && adminUnlocked) renderAdminApprovals();
 }
 
@@ -2580,58 +2566,50 @@ function printVirements(){
 }
 
 // ═══════════════════════════════════════════════════════════
-//  VIREMENT LIVE PRINT PREVIEW
+//  VIREMENT LIVE PRINT PREVIEW (Tab Page)
 // ═══════════════════════════════════════════════════════════
 let virementLogoDataURL = localStorage.getItem('cesti_virement_logo') || '';
 
-function openVirementLivePreview() {
-    var overlay = document.getElementById('vlpOverlay');
-    var select = document.getElementById('vlpRequestSelect');
-    if (!overlay || !select) {
-        alert('Live Preview elements not found. Please refresh the page.');
-        return;
-    }
-    var quarterRequests = getActiveQuarterRequests();
+function goToVirementFormPreview() {
+    // Switch to the vlpform tab, highlight the correct tab button
+    document.querySelectorAll('.tab-panel').forEach(function(p){ p.classList.remove('active'); });
+    document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.remove('active'); });
+    document.getElementById('tab-vlpform').classList.add('active');
+    document.querySelectorAll('.tab-btn').forEach(function(b){
+        if (b.textContent.indexOf('Live Preview Form') !== -1) b.classList.add('active');
+    });
+    var mainEl = document.querySelector('.main');
+    if (mainEl) mainEl.style.maxWidth = '';
+    populateVlpRequestSelect();
+    renderVirementFormPreview();
+}
 
-    // Populate request dropdown
+function populateVlpRequestSelect() {
+    var select = document.getElementById('vlpRequestSelect');
+    if (!select) return;
+    var quarterRequests = getActiveQuarterRequests();
     if (quarterRequests.length === 0) {
         select.innerHTML = '<option value="">No requests for this quarter</option>';
     } else {
         var opts = '<option value="all">All Requests</option>';
         for (var i = 0; i < quarterRequests.length; i++) {
             var r = quarterRequests[i];
-            var displayDate = r.date ? new Date(r.date + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
-            var idStr = r.id ? r.id.slice(-4) : (i + 1);
-            opts += '<option value="' + i + '">#' + idStr + ' — ' + fmt(r.total) + ' — ' + displayDate + '</option>';
+            var displayDate = r.date ? new Date(r.date + 'T00:00:00').toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' }) : '';
+            var idStr = r.id ? r.id.slice(-4) : String(i + 1);
+            opts += '<option value="' + i + '">#' + idStr + ' \u2014 ' + fmt(r.total) + ' \u2014 ' + displayDate + '</option>';
         }
         select.innerHTML = opts;
     }
-
-    overlay.classList.add('open');
-    document.body.style.overflow = 'hidden';
-    renderVirementFormPreview();
 }
-
-function closeVirementLivePreview() {
-    document.getElementById('vlpOverlay').classList.remove('open');
-    document.body.style.overflow = '';
-}
-
-// Close on Escape key
-document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape' && document.getElementById('vlpOverlay').classList.contains('open')) {
-        closeVirementLivePreview();
-    }
-});
 
 function uploadVirementLogo() {
     document.getElementById('vlpLogoInput').click();
 }
 
 function handleVirementLogoUpload(event) {
-    const file = event.target.files[0];
+    var file = event.target.files[0];
     if (!file) return;
-    const reader = new FileReader();
+    var reader = new FileReader();
     reader.onload = function(e) {
         virementLogoDataURL = e.target.result;
         localStorage.setItem('cesti_virement_logo', virementLogoDataURL);
@@ -2648,20 +2626,22 @@ function removeVirementLogo() {
 }
 
 function renderVirementFormPreview() {
-    const container = document.getElementById('vlpFormContainer');
-    const select = document.getElementById('vlpRequestSelect');
-    const quarterRequests = getActiveQuarterRequests();
+    var container = document.getElementById('vlpFormContainer');
+    if (!container) return;
+    var select = document.getElementById('vlpRequestSelect');
+    var quarterRequests = getActiveQuarterRequests();
 
     if (quarterRequests.length === 0) {
-        container.innerHTML = '<div style="text-align:center;padding:4rem;color:#999;background:white;width:800px;border-radius:8px;">No virement requests for this quarter to preview.</div>';
+        container.innerHTML = '<div class="vlp-form-page" style="text-align:center;padding:4rem;min-height:200px;"><p style="color:#999;font-size:1rem;">No virement requests for this quarter to preview.</p></div>';
         return;
     }
 
-    let requestsToRender = [];
-    if (select.value === 'all') {
+    var requestsToRender;
+    var selVal = select ? select.value : 'all';
+    if (selVal === 'all' || selVal === '') {
         requestsToRender = quarterRequests;
     } else {
-        const idx = parseInt(select.value);
+        var idx = parseInt(selVal);
         if (!isNaN(idx) && quarterRequests[idx]) {
             requestsToRender = [quarterRequests[idx]];
         } else {
@@ -2669,137 +2649,101 @@ function renderVirementFormPreview() {
         }
     }
 
-    container.innerHTML = requestsToRender.map(r => buildVirementFormPage(r)).join('');
+    container.innerHTML = requestsToRender.map(function(r){ return buildVirementFormPage(r); }).join('');
 }
 
 function buildVirementFormPage(r) {
-    const deficitLines = r.lines.filter(l => !l.anyLine);
-    const anyLines = r.lines.filter(l => l.anyLine);
+    var deficitLines = r.lines.filter(function(l){ return !l.anyLine; });
+    var anyLines = r.lines.filter(function(l){ return l.anyLine; });
+    var displayDate = r.date ? new Date(r.date + 'T00:00:00').toLocaleDateString('en-GB', { day:'numeric', month:'long', year:'numeric' }) : '';
+    var logoHtml = virementLogoDataURL ? '<img src="' + virementLogoDataURL + '" class="vlp-logo" alt="Logo">' : '';
 
-    const displayDate = r.date ? new Date(r.date + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
-
-    const logoHtml = virementLogoDataURL
-        ? `<img src="${virementLogoDataURL}" class="vlp-logo" alt="Logo">`
-        : '';
-
-    // Build deficit transfer table rows
-    const deficitRows = deficitLines.map(l =>
-        `<tr><td>${l.fromName}</td><td class="amount-col">${fmt(l.amount)}</td><td>${l.toName}</td></tr>`
-    ).join('');
-
-    // Build any-line transfer table rows
-    const anyLineRows = anyLines.map(l =>
-        `<tr><td>${l.fromName}</td><td class="amount-col">${fmt(l.amount)}</td><td>${l.toName}</td></tr>`
-    ).join('');
-
-    const deficitSection = deficitLines.length > 0 ? `
-        <p style="margin-top:0.75rem;">Funds <span class="vlp-underline">Vired</span> will be re-allocated to one or several? as follows:</p>
-        <table class="vlp-form-table">
-            <thead>
-                <tr>
-                    <th>From Line Item(s)</th>
-                    <th style="text-align:center;">Amount</th>
-                    <th>To Line Item(s)</th>
-                </tr>
-            </thead>
-            <tbody>${deficitRows}</tbody>
-        </table>` : '';
-
-    const anyLineSection = anyLines.length > 0 ? `
-        <p style="margin-top:0.75rem;">Funds <span class="vlp-underline">Vired</span> to Other Line Items:</p>
-        <table class="vlp-form-table">
-            <thead>
-                <tr>
-                    <th>From Line Item(s)</th>
-                    <th style="text-align:center;">Amount</th>
-                    <th>To Line Item(s)</th>
-                </tr>
-            </thead>
-            <tbody>${anyLineRows}</tbody>
-        </table>` : '';
-
-    // Approval stamp
-    let approvalHtml = '';
-    if (r.status === 'Approved') {
-        approvalHtml = `<div class="vlp-approval-stamp approved"><strong>✓ APPROVED</strong> by ${r.approvedBy || 'Admin'}${r.approvalDate ? ' — ' + r.approvalDate : ''}${r.approvalComment ? '<br>Comment: ' + r.approvalComment : ''}</div>`;
-    } else if (r.status === 'Rejected') {
-        approvalHtml = `<div class="vlp-approval-stamp rejected"><strong>✗ REJECTED</strong> by ${r.approvedBy || 'Admin'}${r.approvalDate ? ' — ' + r.approvalDate : ''}${r.approvalComment ? '<br>Comment: ' + r.approvalComment : ''}</div>`;
-    } else {
-        approvalHtml = `<div class="vlp-approval-stamp pending"><strong>⏳ PENDING APPROVAL</strong></div>`;
+    var deficitRows = '';
+    for (var i = 0; i < deficitLines.length; i++) {
+        var l = deficitLines[i];
+        deficitRows += '<tr><td>' + l.fromName + '</td><td class="amount-col">' + fmt(l.amount) + '</td><td>' + l.toName + '</td></tr>';
+    }
+    var anyLineRows = '';
+    for (var j = 0; j < anyLines.length; j++) {
+        var a = anyLines[j];
+        anyLineRows += '<tr><td>' + a.fromName + '</td><td class="amount-col">' + fmt(a.amount) + '</td><td>' + a.toName + '</td></tr>';
     }
 
-    return `
-    <div class="vlp-form-page" style="margin-bottom:2rem;">
-        ${logoHtml}
-        <div class="vlp-form-header">
-            <h1>HEART/NSTA TRUST</h1>
-            <h2>COMMUNITY TRAINING INTERVENTION</h2>
-            <h3>REQUEST FOR VIREMENT OF FUNDS</h3>
-        </div>
-        <div class="vlp-form-body">
-            <p><strong>Project</strong>: ${r.project}</p>
-            <p>We are requesting approval to <span class="vlp-underline">vire</span> funds allocated in the ${r.period} subvention.</p>
-            <p>We are seeking approval to move a total of: <span class="vlp-underline">${fmt(r.total)} (${r.totalWords})</span></p>
-            <p style="margin-left:15rem;"><em>Amount in figure</em>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<em>Amount in words</em></p>
-            <p>as per the categories stated below.</p>
+    var deficitSection = deficitLines.length > 0 ?
+        '<p style="margin-top:0.75rem;">Funds <span class="vlp-underline">Vired</span> will be re-allocated to one or several? as follows:</p>' +
+        '<table class="vlp-form-table"><thead><tr>' +
+        '<th>From Line Item(s)</th><th style="text-align:center;">Amount</th><th>To Line Item(s)</th>' +
+        '</tr></thead><tbody>' + deficitRows + '</tbody></table>' : '';
 
-            ${deficitSection}
-            ${anyLineSection}
+    var anyLineSection = anyLines.length > 0 ?
+        '<p style="margin-top:0.75rem;">Funds <span class="vlp-underline">Vired</span> to Other Line Items:</p>' +
+        '<table class="vlp-form-table"><thead><tr>' +
+        '<th>From Line Item(s)</th><th style="text-align:center;">Amount</th><th>To Line Item(s)</th>' +
+        '</tr></thead><tbody>' + anyLineRows + '</tbody></table>' : '';
 
-            <div class="vlp-total-line">
-                <strong>Total = ${fmt(r.total)}</strong>
-            </div>
+    var approvalHtml = '';
+    if (r.status === 'Approved') {
+        approvalHtml = '<div class="vlp-approval-stamp approved"><strong>\u2713 APPROVED</strong> by ' + (r.approvedBy || 'Admin') + (r.approvalDate ? ' \u2014 ' + r.approvalDate : '') + (r.approvalComment ? '<br>Comment: ' + r.approvalComment : '') + '</div>';
+    } else if (r.status === 'Rejected') {
+        approvalHtml = '<div class="vlp-approval-stamp rejected"><strong>\u2717 REJECTED</strong> by ' + (r.approvedBy || 'Admin') + (r.approvalDate ? ' \u2014 ' + r.approvalDate : '') + (r.approvalComment ? '<br>Comment: ' + r.approvalComment : '') + '</div>';
+    } else {
+        approvalHtml = '<div class="vlp-approval-stamp pending"><strong>\u23F3 PENDING APPROVAL</strong></div>';
+    }
 
-            <p>Regards.</p>
-
-            <div class="vlp-signature-section">
-                <div class="vlp-sig-row">
-                    <strong>Requested by:</strong>
-                    <span class="vlp-sig-line" style="min-width:140px;">${r.requestedBy || ''}</span>
-                    <span class="vlp-sig-line" style="min-width:100px;">${r.position || ''}</span>
-                    <span class="vlp-sig-line" style="min-width:120px;"></span>
-                    <span class="vlp-sig-line" style="min-width:80px;">${displayDate}</span>
-                </div>
-                <div class="vlp-sig-labels">
-                    <span style="min-width:140px;">Name</span>
-                    <span style="min-width:100px;">Position</span>
-                    <span style="min-width:120px;">Signature</span>
-                    <span style="min-width:80px;">Date</span>
-                </div>
-                <div class="vlp-sig-row">
-                    <strong>Approved by:</strong>
-                    <span class="vlp-sig-line" style="min-width:200px;">${r.approvedBy || ''}</span>
-                    <span class="vlp-sig-line" style="min-width:180px;"></span>
-                    <span class="vlp-sig-line" style="min-width:80px;">${r.approvalDate || ''}</span>
-                </div>
-                <div class="vlp-sig-labels" style="padding-left:6.5rem;">
-                    <span style="min-width:200px;">Name</span>
-                    <span style="min-width:180px;">Signature</span>
-                    <span style="min-width:80px;">Date</span>
-                </div>
-            </div>
-
-            ${approvalHtml}
-        </div>
-        <div class="vlp-version-footer">CTI/Virement Request/Version 2.0:05/08/2020</div>
-    </div>`;
+    return '<div class="vlp-form-page">' +
+        logoHtml +
+        '<div class="vlp-form-header">' +
+            '<h1>HEART/NSTA TRUST</h1>' +
+            '<h2>COMMUNITY TRAINING INTERVENTION</h2>' +
+            '<h3>REQUEST FOR VIREMENT OF FUNDS</h3>' +
+        '</div>' +
+        '<div class="vlp-form-body">' +
+            '<p><strong>Project</strong>: ' + r.project + '</p>' +
+            '<p>We are requesting approval to <span class="vlp-underline">vire</span> funds allocated in the ' + r.period + ' subvention.</p>' +
+            '<p>We are seeking approval to move a total of: <span class="vlp-underline">' + fmt(r.total) + ' (' + r.totalWords + ')</span></p>' +
+            '<p style="margin-left:15rem;"><em>Amount in figure</em>' + '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;' + '<em>Amount in words</em></p>' +
+            '<p>as per the categories stated below.</p>' +
+            deficitSection +
+            anyLineSection +
+            '<div class="vlp-total-line"><strong>Total = ' + fmt(r.total) + '</strong></div>' +
+            '<p>Regards.</p>' +
+            '<div class="vlp-signature-section">' +
+                '<div class="vlp-sig-row"><strong>Requested by:</strong>' +
+                    '<span class="vlp-sig-line" style="min-width:140px;">' + (r.requestedBy || '') + '</span>' +
+                    '<span class="vlp-sig-line" style="min-width:100px;">' + (r.position || '') + '</span>' +
+                    '<span class="vlp-sig-line" style="min-width:120px;"></span>' +
+                    '<span class="vlp-sig-line" style="min-width:80px;">' + displayDate + '</span>' +
+                '</div>' +
+                '<div class="vlp-sig-labels">' +
+                    '<span style="min-width:140px;">Name</span>' +
+                    '<span style="min-width:100px;">Position</span>' +
+                    '<span style="min-width:120px;">Signature</span>' +
+                    '<span style="min-width:80px;">Date</span>' +
+                '</div>' +
+                '<div class="vlp-sig-row"><strong>Approved by:</strong>' +
+                    '<span class="vlp-sig-line" style="min-width:200px;">' + (r.approvedBy || '') + '</span>' +
+                    '<span class="vlp-sig-line" style="min-width:180px;"></span>' +
+                    '<span class="vlp-sig-line" style="min-width:80px;">' + (r.approvalDate || '') + '</span>' +
+                '</div>' +
+                '<div class="vlp-sig-labels" style="padding-left:6.5rem;">' +
+                    '<span style="min-width:200px;">Name</span>' +
+                    '<span style="min-width:180px;">Signature</span>' +
+                    '<span style="min-width:80px;">Date</span>' +
+                '</div>' +
+            '</div>' +
+            approvalHtml +
+        '</div>' +
+        '<div class="vlp-version-footer">CTI/Virement Request/Version 2.0:05/08/2020</div>' +
+    '</div>';
 }
 
 function printVirementFormPreview() {
-    const overlay = document.getElementById('vlpOverlay');
-    // Temporarily hide everything else for printing
-    document.querySelectorAll('.tab-panel').forEach(p => {
-        p.classList.remove('active');
-        p.classList.remove('print-active');
-    });
-    document.querySelector('.sticky-nav-wrapper').style.display = 'none';
-    document.querySelector('.main').style.display = 'none';
-    setTimeout(() => {
-        window.print();
-        // Restore after print
-        document.querySelector('.sticky-nav-wrapper').style.display = '';
-        document.querySelector('.main').style.display = '';
-    }, 200);
+    renderVirementFormPreview();
+    document.querySelectorAll('.tab-panel').forEach(function(p){ p.classList.remove('active'); p.classList.remove('print-active'); });
+    var vlpTab = document.getElementById('tab-vlpform');
+    vlpTab.classList.add('active');
+    vlpTab.classList.add('print-active');
+    setTimeout(function(){ window.print(); }, 200);
 }
 
 // ═══════════════════════════════════════════════════════════
