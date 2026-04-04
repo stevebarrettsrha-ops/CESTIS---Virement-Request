@@ -2123,6 +2123,40 @@ function getAllLineOptions(){
     }).join('');
 }
 
+// Refresh all existing virement dropdowns when budgetData changes
+function refreshVirementDropdowns() {
+    // Update Fund Transfer Lines (Surplus → Deficit)
+    document.querySelectorAll('#virementLines .virement-entry').forEach(entry => {
+        const fromSelect = entry.querySelector('.vl-from');
+        const toSelect = entry.querySelector('.vl-to');
+        if (fromSelect) {
+            const curVal = fromSelect.value;
+            fromSelect.innerHTML = getLineOptions('from');
+            fromSelect.value = curVal;
+        }
+        if (toSelect) {
+            const curVal = toSelect.value;
+            toSelect.innerHTML = getLineOptions('to');
+            toSelect.value = curVal;
+        }
+    });
+    // Update Any-Line Transfers (Surplus → Any)
+    document.querySelectorAll('#virementAnyLines .virement-entry').forEach(entry => {
+        const fromSelect = entry.querySelector('.vl-from');
+        const toSelect = entry.querySelector('.vl-to');
+        if (fromSelect) {
+            const curVal = fromSelect.value;
+            fromSelect.innerHTML = getLineOptions('from');
+            fromSelect.value = curVal;
+        }
+        if (toSelect) {
+            const curVal = toSelect.value;
+            toSelect.innerHTML = getAllLineOptions();
+            toSelect.value = curVal;
+        }
+    });
+}
+
 function addVirementLine(){
     let container = document.getElementById('virementLines');
     let div = document.createElement('div');
@@ -3560,6 +3594,7 @@ function loadBudgetForQuarter() {
             budgetData = newBudgetData;
             budgetDataSource = 'cashbook-cloud';
             updateQuarterDisplay();
+            refreshVirementDropdowns();
             return true;
         }
     }
@@ -3573,6 +3608,7 @@ function loadBudgetForQuarter() {
     }));
     budgetDataSource = 'no-data';
     updateQuarterDisplay();
+    refreshVirementDropdowns();
     return false;
 }
 
