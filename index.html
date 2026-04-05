@@ -689,24 +689,34 @@
             text-align: left; border-bottom: 1px solid #000;
         }
         .vlp-form-table td {
-            border-bottom: 1px solid #333;
+            border-bottom: 1px solid #000;
         }
         .vlp-form-table td.amount-col {
             text-align: center;
         }
+        .vlp-form-table tr.blank-row td {
+            height: 1.6rem; border-bottom: 1px solid #000;
+        }
+        .vlp-separator-line {
+            border: none; border-top: 1px solid #000; margin: 0.75rem 0;
+        }
         .vlp-total-line {
             font-weight: bold; font-size: 0.95rem;
-            text-align: center; margin: 1.5rem 0;
+            text-align: center; margin: 1.5rem 0 0.5rem;
         }
         .vlp-signature-section {
-            margin-top: 2rem; font-size: 0.85rem; line-height: 2.2;
+            margin-top: 1rem; font-size: 0.85rem; line-height: 2.2;
         }
         .vlp-sig-line {
             display: inline-block; border-bottom: 1px solid #000;
-            min-width: 150px; margin: 0 0.5rem;
+            margin: 0 0.3rem; vertical-align: baseline;
         }
         .vlp-sig-row {
-            display: flex; align-items: baseline; gap: 0.5rem; margin-bottom: 0.25rem;
+            display: flex; align-items: baseline; gap: 0; margin-bottom: 0.15rem;
+            white-space: nowrap;
+        }
+        .vlp-sig-row strong {
+            flex-shrink: 0;
         }
         .vlp-sig-labels {
             display: flex; gap: 0; margin-top: -0.3rem; margin-bottom: 0.75rem;
@@ -2669,17 +2679,23 @@ function buildVirementFormPage(r) {
         anyLineRows += '<tr><td>' + a.fromName + '</td><td class="amount-col">' + fmt(a.amount) + '</td><td>' + a.toName + '</td></tr>';
     }
 
+    var blankRows = '<tr class="blank-row"><td></td><td></td><td></td></tr>' +
+        '<tr class="blank-row"><td></td><td></td><td></td></tr>' +
+        '<tr class="blank-row"><td></td><td></td><td></td></tr>';
+
     var deficitSection = deficitLines.length > 0 ?
         '<p style="margin-top:0.75rem;">Funds <span class="vlp-underline">Vired</span> will be re-allocated to one or several? as follows:</p>' +
         '<table class="vlp-form-table"><thead><tr>' +
         '<th>From Line Item(s)</th><th style="text-align:center;">Amount</th><th>To Line Item(s)</th>' +
-        '</tr></thead><tbody>' + deficitRows + '</tbody></table>' : '';
+        '</tr></thead><tbody>' + deficitRows + blankRows + '</tbody></table>' +
+        '<hr class="vlp-separator-line">' : '';
 
     var anyLineSection = anyLines.length > 0 ?
         '<p style="margin-top:0.75rem;">Funds <span class="vlp-underline">Vired</span> to Other Line Items:</p>' +
         '<table class="vlp-form-table"><thead><tr>' +
         '<th>From Line Item(s)</th><th style="text-align:center;">Amount</th><th>To Line Item(s)</th>' +
-        '</tr></thead><tbody>' + anyLineRows + '</tbody></table>' : '';
+        '</tr></thead><tbody>' + anyLineRows + blankRows + '</tbody></table>' +
+        '<hr class="vlp-separator-line">' : '';
 
     var approvalHtml = '';
     if (r.status === 'Approved') {
@@ -2705,30 +2721,31 @@ function buildVirementFormPage(r) {
             '<p>as per the categories stated below.</p>' +
             deficitSection +
             anyLineSection +
+            '<hr class="vlp-separator-line">' +
             '<div class="vlp-total-line"><strong>Total = ' + fmt(r.total) + '</strong></div>' +
             '<p>Regards.</p>' +
             '<div class="vlp-signature-section">' +
                 '<div class="vlp-sig-row"><strong>Requested by:</strong>' +
-                    '<span class="vlp-sig-line" style="min-width:140px;">' + (r.requestedBy || '') + '</span>' +
-                    '<span class="vlp-sig-line" style="min-width:100px;">' + (r.position || '') + '</span>' +
-                    '<span class="vlp-sig-line" style="min-width:120px;"></span>' +
-                    '<span class="vlp-sig-line" style="min-width:80px;">' + displayDate + '</span>' +
+                    '<span class="vlp-sig-line" style="width:160px;">' + (r.requestedBy || '') + '</span>' +
+                    '<span class="vlp-sig-line" style="width:120px;">' + (r.position || '') + '</span>' +
+                    '<span class="vlp-sig-line" style="width:140px;"></span>' +
+                    '<span class="vlp-sig-line" style="width:100px;">' + displayDate + '</span>' +
                 '</div>' +
                 '<div class="vlp-sig-labels">' +
-                    '<span style="min-width:140px;">Name</span>' +
-                    '<span style="min-width:100px;">Position</span>' +
-                    '<span style="min-width:120px;">Signature</span>' +
-                    '<span style="min-width:80px;">Date</span>' +
+                    '<span style="width:160px;">Name</span>' +
+                    '<span style="width:120px;">Position</span>' +
+                    '<span style="width:140px;">Signature</span>' +
+                    '<span style="width:100px;">Date</span>' +
                 '</div>' +
                 '<div class="vlp-sig-row"><strong>Approved by:</strong>' +
-                    '<span class="vlp-sig-line" style="min-width:200px;">' + (r.approvedBy || '') + '</span>' +
-                    '<span class="vlp-sig-line" style="min-width:180px;"></span>' +
-                    '<span class="vlp-sig-line" style="min-width:80px;">' + (r.approvalDate || '') + '</span>' +
+                    '<span class="vlp-sig-line" style="width:230px;">' + (r.approvedBy || '') + '</span>' +
+                    '<span class="vlp-sig-line" style="width:210px;"></span>' +
+                    '<span class="vlp-sig-line" style="width:100px;">' + (r.approvalDate || '') + '</span>' +
                 '</div>' +
                 '<div class="vlp-sig-labels" style="padding-left:6.5rem;">' +
-                    '<span style="min-width:200px;">Name</span>' +
-                    '<span style="min-width:180px;">Signature</span>' +
-                    '<span style="min-width:80px;">Date</span>' +
+                    '<span style="width:230px;">Name</span>' +
+                    '<span style="width:210px;">Signature</span>' +
+                    '<span style="width:100px;">Date</span>' +
                 '</div>' +
             '</div>' +
             approvalHtml +
