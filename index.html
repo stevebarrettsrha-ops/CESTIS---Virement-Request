@@ -2698,13 +2698,6 @@ function buildVirementFormPage(r) {
         '<hr class="vlp-separator-line">' : '';
 
     var approvalHtml = '';
-    if (r.status === 'Approved') {
-        approvalHtml = '<div class="vlp-approval-stamp approved"><strong>\u2713 APPROVED</strong> by ' + (r.approvedBy || 'Admin') + (r.approvalDate ? ' \u2014 ' + r.approvalDate : '') + (r.approvalComment ? '<br>Comment: ' + r.approvalComment : '') + '</div>';
-    } else if (r.status === 'Rejected') {
-        approvalHtml = '<div class="vlp-approval-stamp rejected"><strong>\u2717 REJECTED</strong> by ' + (r.approvedBy || 'Admin') + (r.approvalDate ? ' \u2014 ' + r.approvalDate : '') + (r.approvalComment ? '<br>Comment: ' + r.approvalComment : '') + '</div>';
-    } else {
-        approvalHtml = '<div class="vlp-approval-stamp pending"><strong>\u23F3 PENDING APPROVAL</strong></div>';
-    }
 
     return '<div class="vlp-form-page">' +
         logoHtml +
@@ -2726,24 +2719,24 @@ function buildVirementFormPage(r) {
             '<p>Regards.</p>' +
             '<div class="vlp-signature-section">' +
                 '<div class="vlp-sig-row"><strong>Requested by:</strong>' +
-                    '<span class="vlp-sig-line" style="width:160px;">' + (r.requestedBy || '') + '</span>' +
-                    '<span class="vlp-sig-line" style="width:120px;">' + (r.position || '') + '</span>' +
-                    '<span class="vlp-sig-line" style="width:140px;"></span>' +
-                    '<span class="vlp-sig-line" style="width:100px;">' + displayDate + '</span>' +
+                    '<span class="vlp-sig-line" style="width:200px;">' + (r.requestedBy || '') + '</span>' +
+                    '<span class="vlp-sig-line" style="width:160px;"></span>' +
+                    '<span class="vlp-sig-line" style="width:160px;"></span>' +
+                    '<span class="vlp-sig-line" style="width:100px;"></span>' +
                 '</div>' +
                 '<div class="vlp-sig-labels">' +
-                    '<span style="width:160px;">Name</span>' +
-                    '<span style="width:120px;">Position</span>' +
-                    '<span style="width:140px;">Signature</span>' +
+                    '<span style="width:200px;">Name</span>' +
+                    '<span style="width:160px;">Position</span>' +
+                    '<span style="width:160px;">Signature</span>' +
                     '<span style="width:100px;">Date</span>' +
                 '</div>' +
                 '<div class="vlp-sig-row"><strong>Approved by:</strong>' +
-                    '<span class="vlp-sig-line" style="width:230px;">' + (r.approvedBy || '') + '</span>' +
+                    '<span class="vlp-sig-line" style="width:280px;"></span>' +
                     '<span class="vlp-sig-line" style="width:210px;"></span>' +
-                    '<span class="vlp-sig-line" style="width:100px;">' + (r.approvalDate || '') + '</span>' +
+                    '<span class="vlp-sig-line" style="width:100px;"></span>' +
                 '</div>' +
                 '<div class="vlp-sig-labels" style="padding-left:6.5rem;">' +
-                    '<span style="width:230px;">Name</span>' +
+                    '<span style="width:280px;">Name</span>' +
                     '<span style="width:210px;">Signature</span>' +
                     '<span style="width:100px;">Date</span>' +
                 '</div>' +
