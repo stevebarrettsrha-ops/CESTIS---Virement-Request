@@ -671,9 +671,9 @@
             font-family: 'Times New Roman', Times, serif; text-decoration: underline;
         }
         .vlp-form-body {
-            font-size: 0.88rem; line-height: 1.5;
+            font-size: 0.88rem; line-height: 1.6;
         }
-        .vlp-form-body p { margin-bottom: 0.15rem; }
+        .vlp-form-body p { margin-bottom: 0.4rem; }
         .vlp-form-body .vlp-underline {
             text-decoration: underline; font-weight: bold;
         }
@@ -2705,19 +2705,21 @@ function buildVirementFormPage(r) {
         anyLineRows += '<tr><td>' + a.fromName + '</td><td class="amount-col">' + fmt(a.amount) + '</td><td>' + a.toName + '</td></tr>';
     }
 
-    var blankRows = '';
+    var blankRows = '<tr class="blank-row"><td></td><td></td><td></td></tr>' +
+        '<tr class="blank-row"><td></td><td></td><td></td></tr>' +
+        '<tr class="blank-row"><td></td><td></td><td></td></tr>';
 
     var deficitSection = deficitLines.length > 0 ?
-        '<p style="margin-top:0.75rem;">Funds <span class="vlp-underline">Vired</span> will be re-allocated to one or several? as follows:</p>' +
+        '<p>Funds <span class="vlp-underline">Vired</span> will be re-allocated to one or several? as follows:</p>' +
         '<table class="vlp-form-table"><thead><tr>' +
         '<th>From Line Item(s)</th><th style="text-align:center;">Amount</th><th>To Line Item(s)</th>' +
-        '</tr></thead><tbody>' + deficitRows + '</tbody></table>' : '';
+        '</tr></thead><tbody>' + deficitRows + blankRows + '</tbody></table>' : '';
 
     var anyLineSection = anyLines.length > 0 ?
-        '<p style="margin-top:0.75rem;">Funds <span class="vlp-underline">Vired</span> to Other Line Items:</p>' +
+        '<p>Funds <span class="vlp-underline">Vired</span> to Other Line Items:</p>' +
         '<table class="vlp-form-table"><thead><tr>' +
         '<th>From Line Item(s)</th><th style="text-align:center;">Amount</th><th>To Line Item(s)</th>' +
-        '</tr></thead><tbody>' + anyLineRows + '</tbody></table>' : '';
+        '</tr></thead><tbody>' + anyLineRows + blankRows + '</tbody></table>' : '';
 
     var approvalHtml = '';
 
@@ -2731,12 +2733,17 @@ function buildVirementFormPage(r) {
         '<div class="vlp-form-body">' +
             '<p>&nbsp;</p>' +
             '<p><strong>Project</strong>: ' + r.project + '</p>' +
+            '<p>&nbsp;</p>' +
             '<p>We are requesting approval to <span class="vlp-underline">vire</span> funds allocated in the ' + r.period + ' subvention.</p>' +
+            '<p>&nbsp;</p>' +
             '<p>We are seeking approval to move a total of: <span class="vlp-underline">' + fmt(r.total) + ' (' + r.totalWords + ')</span></p>' +
-            '<p style="text-align:center;"><em>Amount in figure</em>' + '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;' + '<em>Amount in words</em></p>' +
+            '<p>&nbsp;</p>' +
+            '<p style="text-align:center;"><em>Amount in figure</em>' + '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;' + '<em>Amount in words</em></p>' +
+            '<hr class="vlp-separator-line">' +
             '<p>as per the categories stated below.</p>' +
             deficitSection +
             anyLineSection +
+            '<p>&nbsp;</p>' +
             '<div class="vlp-total-line"><strong>Total = ' + fmt(r.total) + '</strong></div>' +
             '<p>Regards.</p>' +
             '<div class="vlp-signature-section">' +
