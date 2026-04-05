@@ -624,7 +624,7 @@
         .vlp-controls select {
             padding: 0.4rem 0.6rem; border-radius: 4px; border: 1px solid rgba(255,255,255,0.3);
             background: rgba(0,0,0,0.25); color: white; font-family: inherit;
-            font-size: 0.78rem; cursor: pointer;
+            font-size: 0.78rem; cursor: pointer; min-width: 200px;
         }
         .vlp-controls select option { background: #1a1a2e; color: white; }
         .vlp-controls-btn {
@@ -2598,8 +2598,32 @@ function populateVlpRequestSelect() {
     var select = document.getElementById('vlpRequestSelect');
     if (!select) return;
     var quarterRequests = getActiveQuarterRequests();
+
+    // If no requests for the active quarter, auto-switch to the quarter with the most recent request
+    if (quarterRequests.length === 0 && virementRequests.length > 0) {
+        var bestDate = '';
+        var bestFY = virementActiveFY;
+        var bestQ = virementActiveQ;
+        for (var k = 0; k < virementRequests.length; k++) {
+            var rr = virementRequests[k];
+            var rDate = rr.date || '';
+            if (rDate > bestDate) {
+                bestDate = rDate;
+                bestFY = rr.fy || '2025/2026';
+                bestQ = rr.quarter || 3;
+            }
+        }
+        virementActiveFY = bestFY;
+        virementActiveQ = bestQ;
+        // Update quarter buttons if visible
+        document.querySelectorAll('.quarter-btn').forEach(function(btn, i) {
+            btn.classList.toggle('active', i + 1 === virementActiveQ);
+        });
+        quarterRequests = getActiveQuarterRequests();
+    }
+
     if (quarterRequests.length === 0) {
-        select.innerHTML = '<option value="">No requests for this quarter</option>';
+        select.innerHTML = '<option value="">No requests available</option>';
     } else {
         var opts = '<option value="all">All Requests</option>';
         for (var i = 0; i < quarterRequests.length; i++) {
