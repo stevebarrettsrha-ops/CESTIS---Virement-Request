@@ -643,10 +643,10 @@
             background: #2d2d44; border-radius: var(--radius);
             min-height: 400px;
         }
-        .vlp-form-area-inner { width: 800px; }
+        .vlp-form-area-inner { width: 1000px; max-width: 100%; }
         .vlp-form-page {
             background: white; color: #111; width: 100%;
-            padding: 2.5rem 2.5rem 3rem; box-shadow: 0 8px 40px rgba(0,0,0,0.5);
+            padding: 2rem 2.5rem 2rem; box-shadow: 0 8px 40px rgba(0,0,0,0.5);
             font-family: 'Times New Roman', Times, serif; position: relative;
             margin-bottom: 2rem;
         }
@@ -655,8 +655,8 @@
             max-width: 90px; max-height: 90px; object-fit: contain;
         }
         .vlp-form-header {
-            text-align: center; margin-bottom: 1.5rem;
-            padding-bottom: 0.75rem;
+            text-align: center; margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
         }
         .vlp-form-header h1 {
             font-size: 1rem; font-weight: bold; margin-bottom: 0.1rem;
@@ -671,17 +671,17 @@
             font-family: 'Times New Roman', Times, serif; text-decoration: underline;
         }
         .vlp-form-body {
-            font-size: 0.88rem; line-height: 1.8;
+            font-size: 0.88rem; line-height: 1.5;
         }
-        .vlp-form-body p { margin-bottom: 0.3rem; }
+        .vlp-form-body p { margin-bottom: 0.15rem; }
         .vlp-form-body .vlp-underline {
             text-decoration: underline; font-weight: bold;
         }
         .vlp-form-table {
-            width: 100%; border-collapse: collapse; margin: 0.75rem 0;
+            width: 100%; border-collapse: collapse; margin: 0.4rem 0;
         }
         .vlp-form-table th, .vlp-form-table td {
-            padding: 0.4rem 0.6rem; font-size: 0.82rem;
+            padding: 0.25rem 0.6rem; font-size: 0.82rem;
             font-family: 'Times New Roman', Times, serif;
         }
         .vlp-form-table th {
@@ -695,17 +695,17 @@
             text-align: center;
         }
         .vlp-form-table tr.blank-row td {
-            height: 1.6rem; border-bottom: 1px solid #000;
+            height: 1.2rem; border-bottom: 1px solid #000;
         }
         .vlp-separator-line {
-            border: none; border-top: 1px solid #000; margin: 0.75rem 0;
+            border: none; border-top: 1px solid #000; margin: 0.4rem 0;
         }
         .vlp-total-line {
             font-weight: bold; font-size: 0.95rem;
-            text-align: center; margin: 1.5rem 0 0.5rem;
+            text-align: center; margin: 0.75rem 0 0.3rem;
         }
         .vlp-signature-section {
-            margin-top: 1rem; font-size: 0.85rem; line-height: 2.2;
+            margin-top: 0.5rem; font-size: 0.85rem; line-height: 1.8;
         }
         .vlp-sig-line {
             display: inline-block; border-bottom: 1px solid #000;
@@ -719,7 +719,7 @@
             flex-shrink: 0;
         }
         .vlp-sig-labels {
-            display: flex; gap: 0; margin-top: -0.3rem; margin-bottom: 0.75rem;
+            display: flex; gap: 0; margin-top: -0.3rem; margin-bottom: 0.4rem;
             padding-left: 7rem;
         }
         .vlp-sig-labels span {
@@ -734,7 +734,7 @@
         .vlp-approval-stamp.pending { border-color: #d97706; color: #d97706; border-style: dashed; }
         .vlp-version-footer {
             font-size: 0.62rem; font-style: italic; color: #666;
-            margin-top: 2rem;
+            margin-top: 1rem;
         }
 
         /* ─── RESPONSIVE ─── */
@@ -747,6 +747,7 @@
 
         /* ─── PRINT ─── */
         @media print {
+            @page { size: landscape; margin: 0.5in; }
             body { background: white; }
             .topbar, .tab-nav, .no-print, .sticky-nav-wrapper { display: none !important; }
             .main { padding: 0; max-width: 100%; }
@@ -757,7 +758,8 @@
             /* Virement form print */
             .vlp-controls { display: none !important; }
             .vlp-form-area { background: none !important; padding: 0 !important; }
-            .vlp-form-page { box-shadow: none !important; width: 100% !important; padding: 1.5rem !important; page-break-after: always; margin-bottom: 0 !important; }
+            .vlp-form-area-inner { max-width: 100% !important; }
+            .vlp-form-page { box-shadow: none !important; width: 100% !important; padding: 0.75in 1in !important; page-break-after: always; margin-bottom: 0 !important; }
             .vlp-form-page:last-child { page-break-after: auto; }
         }
 
