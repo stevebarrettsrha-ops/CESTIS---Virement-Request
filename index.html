@@ -2705,9 +2705,7 @@ function buildVirementFormPage(r) {
         anyLineRows += '<tr><td>' + a.fromName + '</td><td class="amount-col">' + fmt(a.amount) + '</td><td>' + a.toName + '</td></tr>';
     }
 
-    var blankRows = '<tr class="blank-row"><td></td><td></td><td></td></tr>' +
-        '<tr class="blank-row"><td></td><td></td><td></td></tr>' +
-        '<tr class="blank-row"><td></td><td></td><td></td></tr>';
+    var blankRows = '';
 
     var deficitSection = deficitLines.length > 0 ?
         '<p>Funds <span class="vlp-underline">Vired</span> will be re-allocated to one or several? as follows:</p>' +
